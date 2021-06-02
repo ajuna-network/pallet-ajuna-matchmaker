@@ -1,4 +1,4 @@
-use crate as pallet_matchmaker;
+use crate as pallet_template;
 use sp_core::H256;
 use frame_support::parameter_types;
 use sp_runtime::{
@@ -16,8 +16,8 @@ frame_support::construct_runtime!(
 		NodeBlock = Block,
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
-		System: frame_system::{Module, Call, Config, Storage, Event<T>},
-		JtonMatchMaker: pallet_matchmaker::{Module, Call, Storage, Event<T>},
+		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -49,9 +49,10 @@ impl system::Config for Test {
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
 	type SS58Prefix = SS58Prefix;
+	type OnSetCode = ();
 }
 
-impl pallet_matchmaker::Config for Test {
+impl pallet_template::Config for Test {
 	type Event = Event;
 }
 
