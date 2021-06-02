@@ -1,5 +1,5 @@
 [package]
-name = 'pallet-jton-matchmaker'
+name = 'pallet-matchmaker'
 version = '0.1.0'
 description = 'Jeton Network pallet matchmaker for creating matches between players.'
 authors = ['Jeton Network <https://github.com/JetonNetwork>']

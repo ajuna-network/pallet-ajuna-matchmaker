@@ -1,4 +1,4 @@
-use crate as pallet_template;
+use crate as pallet_matchmaker;
 use sp_core::H256;
 use frame_support::parameter_types;
 use sp_runtime::{
@@ -17,7 +17,7 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
+		MatchMaker: pallet_matchmaker::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -52,7 +52,7 @@ impl system::Config for Test {
 	type OnSetCode = ();
 }
 
-impl pallet_template::Config for Test {
+impl pallet_matchmaker::Config for Test {
 	type Event = Event;
 }
 
