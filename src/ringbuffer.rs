@@ -23,6 +23,7 @@
 //!
 //! Note: You might want to introduce a helper function that wraps the complex
 //! types and just returns the boxed trait object.
+use sp_arithmetic::{traits::{BaseArithmetic}};
 use codec::{Codec, EncodeLike};
 use core::marker::PhantomData;
 use frame_support::storage::{StorageMap, StorageValue};
@@ -47,7 +48,9 @@ where
 	/// Return whether the queue is empty.
 	fn is_empty(&self) -> bool;
     /// Return the current size of the queue.
-	fn size(&self) -> u64;
+	
+    fn min_size_reached(&self, min_size: usize) -> bool;
+    //fn size(&self) -> ?;
 }
 
 // There is no equivalent trait in std so we create one.
@@ -168,19 +171,16 @@ where
 		self.start == self.end
 	}
 
-    /// Return whether to consider the queue empty.
-	fn size(&self) -> u64 {
-        //let start:u64 = self.start.into();
-        //let end:u64 = self.end;
-
-		//if self.start < self.end {
-
+    /// Return the current size of the ring buffer queue.
+	fn min_size_reached(&self, count: usize) -> bool {
+        ////let min_size:Index = count.into();
+        //if self.start <= self.end {
+            //return min_size <= (self.end - self.start)
         //} else {
-        //    (Index:max_value - start) + end
+            //result = (Index:max_value - self.start) + self.end;
         //}
-
-        0
-	}
+        true
+    }
 }
 
 #[cfg(test)]
