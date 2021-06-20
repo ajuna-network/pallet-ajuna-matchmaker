@@ -23,7 +23,6 @@
 //!
 //! Note: You might want to introduce a helper function that wraps the complex
 //! types and just returns the boxed trait object.
-use sp_arithmetic::{traits::{BaseArithmetic}};
 use codec::{Codec, EncodeLike};
 use core::marker::PhantomData;
 use frame_support::storage::{StorageMap, StorageValue};
@@ -47,10 +46,10 @@ where
 	fn pop(&mut self) -> Option<Item>;
 	/// Return whether the queue is empty.
 	fn is_empty(&self) -> bool;
-    /// Return the current size of the queue.
-	
-    fn min_size_reached(&self, min_size: usize) -> bool;
-    //fn size(&self) -> ?;
+    /// Return true if the size of the queue is equal or greater then the min_size.
+    fn min_size_reached(&self, min_size: u64) -> bool;
+    /// Return the size of the ringbuffer queue.
+    fn size(&self) -> u64;
 }
 
 // There is no equivalent trait in std so we create one.
@@ -77,31 +76,30 @@ impl_wrapping_ops!(u16);
 impl_wrapping_ops!(u32);
 impl_wrapping_ops!(u64);
 
-type DefaultIdx = u16;
+pub type BufferIndex = u16;
+
 /// Transient backing data that is the backbone of the trait object.
-pub struct RingBufferTransient<Item, B, M, Index = DefaultIdx>
+pub struct RingBufferTransient<Item, B, M>
 where
 	Item: Codec + EncodeLike,
-	B: StorageValue<(Index, Index), Query = (Index, Index)>,
-	M: StorageMap<Index, Item, Query = Item>,
-	Index: Codec + EncodeLike + Eq + WrappingOps + From<u8> + Copy,
+	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	M: StorageMap<BufferIndex, Item, Query = Item>,
 {
-	start: Index,
-	end: Index,
+	start: BufferIndex,
+	end: BufferIndex,
 	_phantom: PhantomData<(Item, B, M)>,
 }
 
-impl<Item, B, M, Index> RingBufferTransient<Item, B, M, Index>
+impl<Item, B, M> RingBufferTransient<Item, B, M>
 where
 	Item: Codec + EncodeLike,
-	B: StorageValue<(Index, Index), Query = (Index, Index)>,
-	M: StorageMap<Index, Item, Query = Item>,
-	Index: Codec + EncodeLike + Eq + WrappingOps + From<u8> + Copy,
+	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	M: StorageMap<BufferIndex, Item, Query = Item>,
 {
 	/// Create a new `RingBufferTransient` that backs the ringbuffer implementation.
 	///
 	/// Initializes itself from the bounds storage `B`.
-	pub fn new() -> RingBufferTransient<Item, B, M, Index> {
+	pub fn new() -> RingBufferTransient<Item, B, M> {
 		let (start, end) = B::get();
 		RingBufferTransient {
 			start,
@@ -111,12 +109,11 @@ where
 	}
 }
 
-impl<Item, B, M, Index> Drop for RingBufferTransient<Item, B, M, Index>
+impl<Item, B, M> Drop for RingBufferTransient<Item, B, M>
 where
 	Item: Codec + EncodeLike,
-	B: StorageValue<(Index, Index), Query = (Index, Index)>,
-	M: StorageMap<Index, Item, Query = Item>,
-	Index: Codec + EncodeLike + Eq + WrappingOps + From<u8> + Copy,
+	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	M: StorageMap<BufferIndex, Item, Query = Item>,
 {
 	/// Commit on `drop`.
 	fn drop(&mut self) {
@@ -125,12 +122,11 @@ where
 }
 
 /// Ringbuffer implementation based on `RingBufferTransient`
-impl<Item, B, M, Index> RingBufferTrait<Item> for RingBufferTransient<Item, B, M, Index>
+impl<Item, B, M> RingBufferTrait<Item> for RingBufferTransient<Item, B, M>
 where
 	Item: Codec + EncodeLike,
-	B: StorageValue<(Index, Index), Query = (Index, Index)>,
-	M: StorageMap<Index, Item, Query = Item>,
-	Index: Codec + EncodeLike + Eq + WrappingOps + From<u8> + Copy,
+	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	M: StorageMap<BufferIndex, Item, Query = Item>,
 {
 	/// Commit the (potentially) changed bounds to storage.
 	fn commit(&self) {
@@ -144,11 +140,11 @@ where
 		M::insert(self.end, item);
 		// this will intentionally overflow and wrap around when bonds_end
 		// reaches `Index::max_value` because we want a ringbuffer.
-		let next_index = self.end.wrapping_add(1.into());
+		let next_index = self.end.wrapping_add(1 as u16);
 		if next_index == self.start {
 			// queue presents as empty but is not
 			// --> overwrite the oldest item in the FIFO ringbuffer
-			self.start = self.start.wrapping_add(1.into());
+			self.start = self.start.wrapping_add(1 as u16);
 		}
 		self.end = next_index;
 	}
@@ -161,7 +157,7 @@ where
 			return None;
 		}
 		let item = M::take(self.start);
-		self.start = self.start.wrapping_add(1.into());
+		self.start = self.start.wrapping_add(1 as u16);
 
 		item.into()
 	}
@@ -172,14 +168,20 @@ where
 	}
 
     /// Return the current size of the ring buffer queue.
-	fn min_size_reached(&self, count: usize) -> bool {
-        ////let min_size:Index = count.into();
-        //if self.start <= self.end {
-            //return min_size <= (self.end - self.start)
-        //} else {
-            //result = (Index:max_value - self.start) + self.end;
-        //}
-        true
+	fn min_size_reached(&self, min_size: u64) -> bool {
+        min_size <= self.size() 
+    }
+
+    /// Return the current size of the ring buffer as a u64.
+    fn size(&self) -> u64 {
+        let start:u64 = self.start.into();
+        let end:u64 = self.end.into();
+        if start <= end {
+            return end - start
+        } else {
+            let max:u64 = BufferIndex::MAX.into();
+            return (max - start) + end;
+        }
     }
 }
 
@@ -213,7 +215,7 @@ mod tests {
 		}
 	}
 
-	type TestIdx = u8;
+	type TestIdx = BufferIndex;
 
 	#[derive(Clone, PartialEq, Encode, Decode, Default, Debug)]
 	pub struct SomeStruct {
@@ -293,7 +295,6 @@ mod tests {
 		SomeStruct,
 		<TestModule as Store>::TestRange,
 		<TestModule as Store>::TestMap,
-		TestIdx,
 	>;
 
 	#[test]
@@ -306,6 +307,28 @@ mod tests {
 			assert_eq!(start_end, (0, 1));
 			let some_struct = TestModule::get_test_value(0);
 			assert_eq!(some_struct, SomeStruct { foo: 1, bar: 2 });
+		})
+	}
+
+	#[test]
+	fn size_tests() {
+		new_test_ext().execute_with(|| {
+			let mut ring: Box<RingBuffer> = Box::new(Transient::new());
+			ring.push(SomeStruct { foo: 1, bar: 2 });
+			ring.commit();
+
+			let start_end = TestModule::get_test_range();
+			assert_eq!(start_end, (0, 1));
+			let some_struct = TestModule::get_test_value(0);
+			assert_eq!(some_struct, SomeStruct { foo: 1, bar: 2 });
+            assert_eq!(1, ring.size());
+            assert_eq!(false, ring.min_size_reached(2));
+            assert_eq!(true, ring.min_size_reached(1));
+            ring.push(SomeStruct { foo: 1, bar: 2 });
+			ring.commit();
+            assert_eq!(2, ring.size());
+            assert_eq!(true, ring.min_size_reached(2));
+            assert_eq!(true, ring.min_size_reached(1));
 		})
 	}
 
