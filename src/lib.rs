@@ -23,9 +23,9 @@ use ringbuffer::{RingBufferTrait, RingBufferTransient, BufferIndex};
 
 #[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Debug))]
-pub struct PlayerStruct {
-	ranking: i32,
-	boolean: bool,
+pub struct PlayerStruct<AccountId> {
+	ranking: u32,
+	account: AccountId,
 }
 
 #[frame_support::pallet]
@@ -59,7 +59,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_value)]
-	pub type BufferMap<T: Config> = StorageMap<_, Twox64Concat, BufferIndex , PlayerStruct, ValueQuery>;
+	pub type BufferMap<T: Config> = StorageMap<_, Twox64Concat, BufferIndex , PlayerStruct<T::AccountId>, ValueQuery>;
 
 	// Default value for Nonce
 	#[pallet::type_value]
@@ -78,7 +78,7 @@ pub mod pallet {
 		/// parameters. [something, who]
 		SomethingStored(u32, T::AccountId),
 		/// Popped event
-		Popped(i32, bool),
+		Popped(u32, T::AccountId),
 	}
 
 	// Errors inform users that something went wrong.
@@ -137,12 +137,12 @@ pub mod pallet {
 
 		/// Add an item to the queue
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn add_to_queue(origin: OriginFor<T>, ranking: i32, boolean: bool) -> DispatchResult {
+		pub fn add_to_queue(origin: OriginFor<T>, ranking: u32, account: T::AccountId) -> DispatchResult {
 			// only a user can push into the queue
 			let _user = ensure_signed(origin)?;
 	
 			let mut queue = Self::queue_transient();
-			queue.push(PlayerStruct{ ranking, boolean });
+			queue.push(PlayerStruct{ ranking, account });
 		
 			Ok(())
 		}
@@ -168,8 +168,8 @@ pub mod pallet {
 			let _user = ensure_signed(origin)?;		
 
 			let mut queue = Self::queue_transient();
-			if let Some(PlayerStruct{ ranking, boolean }) = queue.pop() {
-				Self::deposit_event(Event::Popped(ranking, boolean));	
+			if let Some(PlayerStruct{ ranking, account }) = queue.pop() {
+				Self::deposit_event(Event::Popped(ranking, account));	
 			}
 		
 			Ok(())	
@@ -182,9 +182,9 @@ impl<T: Config> Pallet<T> {
 	///
 	/// Constructs a ringbuffer transient and returns it as a boxed trait object.
 	/// See [this part of the Rust book](https://doc.rust-lang.org/book/ch17-02-trait-objects.html#trait-objects-perform-dynamic-dispatch)
-	fn queue_transient() -> Box<dyn RingBufferTrait<PlayerStruct>> {
+	fn queue_transient() -> Box<dyn RingBufferTrait<PlayerStruct<T::AccountId>>> {
 		Box::new(RingBufferTransient::<
-			PlayerStruct,
+			PlayerStruct<T::AccountId>,
 			<Self as Store>::BufferRange,
 			<Self as Store>::BufferMap,
 		>::new())

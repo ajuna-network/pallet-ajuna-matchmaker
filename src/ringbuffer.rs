@@ -47,9 +47,9 @@ where
 	/// Return whether the queue is empty.
 	fn is_empty(&self) -> bool;
     /// Return true if the size of the queue is equal or greater then the min_size.
-    fn min_size_reached(&self, min_size: u64) -> bool;
+    fn min_size_reached(&self, min_size: BufferIndex) -> bool;
     /// Return the size of the ringbuffer queue.
-    fn size(&self) -> u64;
+    fn size(&self) -> BufferIndex;
 }
 
 // There is no equivalent trait in std so we create one.
@@ -168,19 +168,16 @@ where
 	}
 
     /// Return the current size of the ring buffer queue.
-	fn min_size_reached(&self, min_size: u64) -> bool {
+	fn min_size_reached(&self, min_size: BufferIndex) -> bool {
         min_size <= self.size() 
     }
 
-    /// Return the current size of the ring buffer as a u64.
-    fn size(&self) -> u64 {
-        let start:u64 = self.start.into();
-        let end:u64 = self.end.into();
-        if start <= end {
-            return end - start
+    /// Return the current size of the ring buffer as a BufferIndex.
+    fn size(&self) -> BufferIndex {
+        if self.start <= self.end {
+            return self.end - self.start
         } else {
-            let max:u64 = BufferIndex::MAX.into();
-            return (max - start) + end;
+            return (BufferIndex::MAX - self.start) + self.end;
         }
     }
 }
