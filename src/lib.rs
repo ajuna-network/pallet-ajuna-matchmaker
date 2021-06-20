@@ -77,6 +77,8 @@ pub mod pallet {
 		/// Event documentation should end with an array that provides descriptive names for event
 		/// parameters. [something, who]
 		SomethingStored(u32, T::AccountId),
+		/// Queued event
+		Queued(u32, T::AccountId),
 		/// Popped event
 		Popped(u32, T::AccountId),
 	}
@@ -143,7 +145,8 @@ pub mod pallet {
 	
 			let mut queue = Self::queue_transient();
 			queue.push(PlayerStruct{ ranking, account });
-		
+			Self::deposit_event(Event::Queued(ranking, account));	
+
 			Ok(())
 		}
 
