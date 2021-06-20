@@ -189,7 +189,6 @@ impl<T: Config> Pallet<T> {
 			PlayerStruct,
 			<Self as Store>::BufferRange,
 			<Self as Store>::BufferMap,
-			BufferIndex,
 		>::new())
 	}
 }

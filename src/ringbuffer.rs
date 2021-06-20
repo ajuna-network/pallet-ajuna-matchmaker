@@ -49,7 +49,7 @@ where
 	fn is_empty(&self) -> bool;
     /// Return the current size of the queue.
 	
-    fn min_size_reached(&self, min_size: usize) -> bool;
+    fn min_size_reached(&self, min_size: u64) -> bool;
     //fn size(&self) -> ?;
 }
 
@@ -79,29 +79,27 @@ impl_wrapping_ops!(u64);
 
 type DefaultIdx = u16;
 /// Transient backing data that is the backbone of the trait object.
-pub struct RingBufferTransient<Item, B, M, Index = DefaultIdx>
+pub struct RingBufferTransient<Item, B, M>
 where
 	Item: Codec + EncodeLike,
-	B: StorageValue<(Index, Index), Query = (Index, Index)>,
-	M: StorageMap<Index, Item, Query = Item>,
-	Index: Codec + EncodeLike + Eq + WrappingOps + From<u8> + Copy,
+	B: StorageValue<(u8, u8), Query = (u8, u8)>,
+	M: StorageMap<u8, Item, Query = Item>,
 {
-	start: Index,
-	end: Index,
+	start: u8,
+	end: u8,
 	_phantom: PhantomData<(Item, B, M)>,
 }
 
-impl<Item, B, M, Index> RingBufferTransient<Item, B, M, Index>
+impl<Item, B, M> RingBufferTransient<Item, B, M>
 where
 	Item: Codec + EncodeLike,
-	B: StorageValue<(Index, Index), Query = (Index, Index)>,
-	M: StorageMap<Index, Item, Query = Item>,
-	Index: Codec + EncodeLike + Eq + WrappingOps + From<u8> + Copy,
+	B: StorageValue<(u8, u8), Query = (u8, u8)>,
+	M: StorageMap<u8, Item, Query = Item>,
 {
 	/// Create a new `RingBufferTransient` that backs the ringbuffer implementation.
 	///
 	/// Initializes itself from the bounds storage `B`.
-	pub fn new() -> RingBufferTransient<Item, B, M, Index> {
+	pub fn new() -> RingBufferTransient<Item, B, M> {
 		let (start, end) = B::get();
 		RingBufferTransient {
 			start,
@@ -111,12 +109,11 @@ where
 	}
 }
 
-impl<Item, B, M, Index> Drop for RingBufferTransient<Item, B, M, Index>
+impl<Item, B, M> Drop for RingBufferTransient<Item, B, M>
 where
 	Item: Codec + EncodeLike,
-	B: StorageValue<(Index, Index), Query = (Index, Index)>,
-	M: StorageMap<Index, Item, Query = Item>,
-	Index: Codec + EncodeLike + Eq + WrappingOps + From<u8> + Copy,
+	B: StorageValue<(u8, u8), Query = (u8, u8)>,
+	M: StorageMap<u8, Item, Query = Item>,
 {
 	/// Commit on `drop`.
 	fn drop(&mut self) {
@@ -125,12 +122,11 @@ where
 }
 
 /// Ringbuffer implementation based on `RingBufferTransient`
-impl<Item, B, M, Index> RingBufferTrait<Item> for RingBufferTransient<Item, B, M, Index>
+impl<Item, B, M> RingBufferTrait<Item> for RingBufferTransient<Item, B, M>
 where
 	Item: Codec + EncodeLike,
-	B: StorageValue<(Index, Index), Query = (Index, Index)>,
-	M: StorageMap<Index, Item, Query = Item>,
-	Index: Codec + EncodeLike + Eq + WrappingOps + From<u8> + Copy,
+	B: StorageValue<(u8, u8), Query = (u8, u8)>,
+	M: StorageMap<u8, Item, Query = Item>,
 {
 	/// Commit the (potentially) changed bounds to storage.
 	fn commit(&self) {
@@ -172,7 +168,8 @@ where
 	}
 
     /// Return the current size of the ring buffer queue.
-	fn min_size_reached(&self, count: usize) -> bool {
+	fn min_size_reached(&self, count: u64) -> bool {
+        
         ////let min_size:Index = count.into();
         //if self.start <= self.end {
             //return min_size <= (self.end - self.start)
@@ -181,6 +178,10 @@ where
         //}
         true
     }
+
+    //fn size(&self) -> Index {
+
+    //}
 }
 
 #[cfg(test)]
@@ -293,7 +294,6 @@ mod tests {
 		SomeStruct,
 		<TestModule as Store>::TestRange,
 		<TestModule as Store>::TestMap,
-		TestIdx,
 	>;
 
 	#[test]
