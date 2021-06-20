@@ -23,7 +23,6 @@
 //!
 //! Note: You might want to introduce a helper function that wraps the complex
 //! types and just returns the boxed trait object.
-use sp_arithmetic::{traits::{BaseArithmetic}};
 use codec::{Codec, EncodeLike};
 use core::marker::PhantomData;
 use frame_support::storage::{StorageMap, StorageValue};
@@ -47,10 +46,8 @@ where
 	fn pop(&mut self) -> Option<Item>;
 	/// Return whether the queue is empty.
 	fn is_empty(&self) -> bool;
-    /// Return the current size of the queue.
-	
+    /// Return true if the size of the queue is equal or greater then the min_size.
     fn min_size_reached(&self, min_size: u64) -> bool;
-    //fn size(&self) -> ?;
 }
 
 // There is no equivalent trait in std so we create one.
@@ -77,24 +74,25 @@ impl_wrapping_ops!(u16);
 impl_wrapping_ops!(u32);
 impl_wrapping_ops!(u64);
 
-type DefaultIdx = u16;
+pub type BufferIndex = u16;
+
 /// Transient backing data that is the backbone of the trait object.
 pub struct RingBufferTransient<Item, B, M>
 where
 	Item: Codec + EncodeLike,
-	B: StorageValue<(u8, u8), Query = (u8, u8)>,
-	M: StorageMap<u8, Item, Query = Item>,
+	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	M: StorageMap<BufferIndex, Item, Query = Item>,
 {
-	start: u8,
-	end: u8,
+	start: BufferIndex,
+	end: BufferIndex,
 	_phantom: PhantomData<(Item, B, M)>,
 }
 
 impl<Item, B, M> RingBufferTransient<Item, B, M>
 where
 	Item: Codec + EncodeLike,
-	B: StorageValue<(u8, u8), Query = (u8, u8)>,
-	M: StorageMap<u8, Item, Query = Item>,
+	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	M: StorageMap<BufferIndex, Item, Query = Item>,
 {
 	/// Create a new `RingBufferTransient` that backs the ringbuffer implementation.
 	///
@@ -112,8 +110,8 @@ where
 impl<Item, B, M> Drop for RingBufferTransient<Item, B, M>
 where
 	Item: Codec + EncodeLike,
-	B: StorageValue<(u8, u8), Query = (u8, u8)>,
-	M: StorageMap<u8, Item, Query = Item>,
+	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	M: StorageMap<BufferIndex, Item, Query = Item>,
 {
 	/// Commit on `drop`.
 	fn drop(&mut self) {
@@ -125,8 +123,8 @@ where
 impl<Item, B, M> RingBufferTrait<Item> for RingBufferTransient<Item, B, M>
 where
 	Item: Codec + EncodeLike,
-	B: StorageValue<(u8, u8), Query = (u8, u8)>,
-	M: StorageMap<u8, Item, Query = Item>,
+	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	M: StorageMap<BufferIndex, Item, Query = Item>,
 {
 	/// Commit the (potentially) changed bounds to storage.
 	fn commit(&self) {
@@ -140,11 +138,11 @@ where
 		M::insert(self.end, item);
 		// this will intentionally overflow and wrap around when bonds_end
 		// reaches `Index::max_value` because we want a ringbuffer.
-		let next_index = self.end.wrapping_add(1.into());
+		let next_index = self.end.wrapping_add(1 as u16);
 		if next_index == self.start {
 			// queue presents as empty but is not
 			// --> overwrite the oldest item in the FIFO ringbuffer
-			self.start = self.start.wrapping_add(1.into());
+			self.start = self.start.wrapping_add(1 as u16);
 		}
 		self.end = next_index;
 	}
@@ -157,7 +155,7 @@ where
 			return None;
 		}
 		let item = M::take(self.start);
-		self.start = self.start.wrapping_add(1.into());
+		self.start = self.start.wrapping_add(1 as u16);
 
 		item.into()
 	}
@@ -168,15 +166,17 @@ where
 	}
 
     /// Return the current size of the ring buffer queue.
-	fn min_size_reached(&self, count: u64) -> bool {
+	fn min_size_reached(&self, min_size: u64) -> bool {
         
-        ////let min_size:Index = count.into();
-        //if self.start <= self.end {
-            //return min_size <= (self.end - self.start)
-        //} else {
-            //result = (Index:max_value - self.start) + self.end;
-        //}
-        true
+        let start:u64 = self.start.into();
+        let end:u64 = self.end.into();
+        
+        if start <= end {
+            return min_size <= end - start
+        } else {
+            let max:u64 = BufferIndex::MAX.into();
+            return min_size <= (max - start) + end;
+        }
     }
 
     //fn size(&self) -> Index {
@@ -214,7 +214,7 @@ mod tests {
 		}
 	}
 
-	type TestIdx = u8;
+	type TestIdx = BufferIndex;
 
 	#[derive(Clone, PartialEq, Encode, Decode, Default, Debug)]
 	pub struct SomeStruct {

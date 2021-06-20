@@ -19,9 +19,7 @@ mod benchmarking;
 
 mod ringbuffer;
 
-use ringbuffer::{RingBufferTrait, RingBufferTransient};
-
-pub type BufferIndex = u8;
+use ringbuffer::{RingBufferTrait, RingBufferTransient, BufferIndex};
 
 #[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Debug))]
