@@ -6,6 +6,8 @@
 
 pub use pallet::*;
 
+use codec::{Decode, Encode};
+
 #[cfg(test)]
 mod mock;
 
@@ -15,10 +17,28 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+mod ringbuffer;
+
+use ringbuffer::{RingBufferTrait, RingBufferTransient};
+
+pub type BufferIndex = u8;
+
+#[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(Debug))]
+pub struct PlayerStruct {
+	ranking: i32,
+	boolean: bool,
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
+
+	// important to use outside structs and consts
+	use super::*;
+
+
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -39,6 +59,17 @@ pub mod pallet {
 	// https://substrate.dev/docs/en/knowledgebase/runtime/storage#declaring-storage-items
 	pub type Something<T> = StorageValue<_, u32>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn get_value)]
+	pub type BufferMap<T: Config> = StorageMap<_, Twox64Concat, BufferIndex , PlayerStruct, ValueQuery>;
+
+	// Default value for Nonce
+	#[pallet::type_value]
+	pub fn BufferRangeDefault<T: Config>() -> (BufferIndex, BufferIndex) { (0, 0) }
+	#[pallet::storage]
+	#[pallet::getter(fn range)]
+	pub type BufferRange<T: Config> = StorageValue<_, (BufferIndex, BufferIndex), ValueQuery, BufferRangeDefault<T>>;
+
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
 	#[pallet::event]
@@ -48,6 +79,8 @@ pub mod pallet {
 		/// Event documentation should end with an array that provides descriptive names for event
 		/// parameters. [something, who]
 		SomethingStored(u32, T::AccountId),
+		/// Popped event
+		Popped(i32, bool),
 	}
 
 	// Errors inform users that something went wrong.
@@ -103,5 +136,60 @@ pub mod pallet {
 				},
 			}
 		}
+
+		/// Add an item to the queue
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		pub fn add_to_queue(origin: OriginFor<T>, ranking: i32, boolean: bool) -> DispatchResult {
+			// only a user can push into the queue
+			let _user = ensure_signed(origin)?;
+	
+			let mut queue = Self::queue_transient();
+			queue.push(PlayerStruct{ ranking, boolean });
+		
+			Ok(())
+		}
+
+		/// Add several items to the queue
+		//#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		//pub fn add_multiple(origin: OriginFor<T>, rankings: Vec<i32>, boolean: bool) -> DispatchResult {
+		//	// only a user can push into the queue
+		//	let _user = ensure_signed(origin)?;
+		//
+		//	let mut queue = Self::queue_transient();
+		//	for ranking in rankings {
+		//		queue.push(PlayerStruct{ ranking, boolean });
+		//	}
+		//
+		//	Ok(())
+		//}
+		
+		/// Remove and return an item from the queue
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		pub fn pop_from_queue(origin: OriginFor<T>) -> DispatchResult {
+			// only a user can pop from the queue
+			let _user = ensure_signed(origin)?;		
+
+			let mut queue = Self::queue_transient();
+			if let Some(PlayerStruct{ ranking, boolean }) = queue.pop() {
+				Self::deposit_event(Event::Popped(ranking, boolean));	
+			}
+		
+			Ok(())	
+		}
+	}
+}
+
+impl<T: Config> Pallet<T> {
+	/// Constructor function so we don't have to specify the types every time.
+	///
+	/// Constructs a ringbuffer transient and returns it as a boxed trait object.
+	/// See [this part of the Rust book](https://doc.rust-lang.org/book/ch17-02-trait-objects.html#trait-objects-perform-dynamic-dispatch)
+	fn queue_transient() -> Box<dyn RingBufferTrait<PlayerStruct>> {
+		Box::new(RingBufferTransient::<
+			PlayerStruct,
+			<Self as Store>::BufferRange,
+			<Self as Store>::BufferMap,
+			BufferIndex,
+		>::new())
 	}
 }
