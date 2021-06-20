@@ -48,6 +48,8 @@ where
 	fn is_empty(&self) -> bool;
     /// Return true if the size of the queue is equal or greater then the min_size.
     fn min_size_reached(&self, min_size: u64) -> bool;
+    /// Return the size of the ringbuffer queue.
+    fn size(&self) -> u64;
 }
 
 // There is no equivalent trait in std so we create one.
@@ -167,21 +169,20 @@ where
 
     /// Return the current size of the ring buffer queue.
 	fn min_size_reached(&self, min_size: u64) -> bool {
-        
-        let start:u64 = self.start.into();
-        let end:u64 = self.end.into();
-        
-        if start <= end {
-            return min_size <= end - start
-        } else {
-            let max:u64 = BufferIndex::MAX.into();
-            return min_size <= (max - start) + end;
-        }
+        min_size <= self.size() 
     }
 
-    //fn size(&self) -> Index {
-
-    //}
+    /// Return the current size of the ring buffer as a u64.
+    fn size(&self) -> u64 {
+        let start:u64 = self.start.into();
+        let end:u64 = self.end.into();
+        if start <= end {
+            return end - start
+        } else {
+            let max:u64 = BufferIndex::MAX.into();
+            return (max - start) + end;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -306,6 +307,28 @@ mod tests {
 			assert_eq!(start_end, (0, 1));
 			let some_struct = TestModule::get_test_value(0);
 			assert_eq!(some_struct, SomeStruct { foo: 1, bar: 2 });
+		})
+	}
+
+	#[test]
+	fn size_tests() {
+		new_test_ext().execute_with(|| {
+			let mut ring: Box<RingBuffer> = Box::new(Transient::new());
+			ring.push(SomeStruct { foo: 1, bar: 2 });
+			ring.commit();
+
+			let start_end = TestModule::get_test_range();
+			assert_eq!(start_end, (0, 1));
+			let some_struct = TestModule::get_test_value(0);
+			assert_eq!(some_struct, SomeStruct { foo: 1, bar: 2 });
+            assert_eq!(1, ring.size());
+            assert_eq!(false, ring.min_size_reached(2));
+            assert_eq!(true, ring.min_size_reached(1));
+            ring.push(SomeStruct { foo: 1, bar: 2 });
+			ring.commit();
+            assert_eq!(2, ring.size());
+            assert_eq!(true, ring.min_size_reached(2));
+            assert_eq!(true, ring.min_size_reached(1));
 		})
 	}
 
