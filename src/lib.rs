@@ -78,9 +78,9 @@ pub mod pallet {
 		/// parameters. [something, who]
 		SomethingStored(u32, T::AccountId),
 		/// Queued event
-		Queued(u32, T::AccountId),
+		Queued(PlayerStruct<T::AccountId>),
 		/// Popped event
-		Popped(u32, T::AccountId),
+		Popped(PlayerStruct<T::AccountId>),
 	}
 
 	// Errors inform users that something went wrong.
@@ -144,8 +144,10 @@ pub mod pallet {
 			let _user = ensure_signed(origin)?;
 	
 			let mut queue = Self::queue_transient();
-			queue.push(PlayerStruct{ ranking, account });
-			Self::deposit_event(Event::Queued(ranking, account));	
+			let player = PlayerStruct{ ranking, account };
+			queue.push(player.clone());
+		
+			Self::deposit_event(Event::Queued(player));	
 
 			Ok(())
 		}
@@ -171,8 +173,8 @@ pub mod pallet {
 			let _user = ensure_signed(origin)?;		
 
 			let mut queue = Self::queue_transient();
-			if let Some(PlayerStruct{ ranking, account }) = queue.pop() {
-				Self::deposit_event(Event::Popped(ranking, account));	
+			if let Some(player_struct) = queue.pop() {
+				Self::deposit_event(Event::Popped(player_struct));	
 			}
 		
 			Ok(())	
