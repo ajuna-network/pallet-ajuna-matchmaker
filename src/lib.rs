@@ -36,8 +36,6 @@ pub mod pallet {
 	// important to use outside structs and consts
 	use super::*;
 
-
-
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -221,14 +219,14 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> MatchSet for Pallet<T> {
+impl<T: Config> MatchFunc for Pallet<T> {
 
-	fn accounts() -> bool {
+	fn queue() -> bool {
 		true
 	}
 }
 
-pub trait MatchSet {
+pub trait MatchFunc {
 
-	fn accounts() -> bool;
+	fn queue() -> bool;
 }
