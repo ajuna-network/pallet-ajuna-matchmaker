@@ -222,7 +222,6 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> MatchSet for Pallet<T> {
-	type AccountId = T::AccountId;
 
 	fn accounts() -> bool {
 		true
@@ -230,7 +229,6 @@ impl<T: Config> MatchSet for Pallet<T> {
 }
 
 pub trait MatchSet {
-	type AccountId;
 
 	fn accounts() -> bool;
 }
