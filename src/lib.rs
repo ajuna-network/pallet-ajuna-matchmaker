@@ -219,8 +219,18 @@ impl<T: Config> Pallet<T> {
 			<Self as Store>::BufferMap,
 		>::new())
 	}
+}
 
-	pub fn test() -> bool {
+impl<T: Config> MatchSet for Pallet<T> {
+	type AccountId = T::AccountId;
+
+	fn accounts() -> bool {
 		true
 	}
+}
+
+pub trait MatchSet {
+	type AccountId;
+
+	fn accounts() -> bool;
 }
