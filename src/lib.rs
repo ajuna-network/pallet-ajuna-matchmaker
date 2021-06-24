@@ -55,7 +55,7 @@ pub mod pallet {
 	#[pallet::getter(fn something)]
 	// Learn more about declaring storage items:
 	// https://substrate.dev/docs/en/knowledgebase/runtime/storage#declaring-storage-items
-	pub(super) type Something<T> = StorageValue<_, u32>;
+	pub type Something<T> = StorageValue<_, u32>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_value)]
@@ -139,7 +139,7 @@ pub mod pallet {
 
 		/// Add an item to the queue
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub(super) fn add_to_queue(origin: OriginFor<T>, ranking: u32, account: T::AccountId) -> DispatchResult {
+		pub fn add_to_queue(origin: OriginFor<T>, ranking: u32, account: T::AccountId) -> DispatchResult {
 			// only a user can push into the queue
 			let _user = ensure_signed(origin)?;
 	
@@ -218,5 +218,9 @@ impl<T: Config> Pallet<T> {
 			<Self as Store>::BufferRange,
 			<Self as Store>::BufferMap,
 		>::new())
+	}
+
+	pub fn test() -> bool {
+		true
 	}
 }
