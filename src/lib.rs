@@ -55,7 +55,7 @@ pub mod pallet {
 	#[pallet::getter(fn something)]
 	// Learn more about declaring storage items:
 	// https://substrate.dev/docs/en/knowledgebase/runtime/storage#declaring-storage-items
-	pub type Something<T> = StorageValue<_, u32>;
+	pub(super) type Something<T> = StorageValue<_, u32>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_value)]
@@ -139,7 +139,7 @@ pub mod pallet {
 
 		/// Add an item to the queue
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn add_to_queue(origin: OriginFor<T>, ranking: u32, account: T::AccountId) -> DispatchResult {
+		pub(super) fn add_to_queue(origin: OriginFor<T>, ranking: u32, account: T::AccountId) -> DispatchResult {
 			// only a user can push into the queue
 			let _user = ensure_signed(origin)?;
 	
@@ -177,6 +177,31 @@ pub mod pallet {
 				Self::deposit_event(Event::Popped(player_struct));	
 			}
 		
+			Ok(())	
+		}
+
+		/// Try to create a match with a certain amount of players.
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		pub fn make_match(origin: OriginFor<T>) -> DispatchResult {
+			// only a user can pop from the queue
+			let _user = ensure_signed(origin)?;	
+						
+			let mut queue = Self::queue_transient();
+			ensure!(queue.min_size_reached(1), "There aren't enough players queued currently.");
+			
+			let mut player_array: [PlayerStruct<T::AccountId>; 2] = Default::default();
+
+			for p in 0..2 {
+				if let Some(player_struct) = queue.pop() {
+					player_array[p] = player_struct.clone();
+					Self::deposit_event(Event::Popped(player_struct));	
+				}
+				else
+				{
+					return Err(Error::<T>::NoneValue)?
+				}
+			}
+
 			Ok(())	
 		}
 	}
