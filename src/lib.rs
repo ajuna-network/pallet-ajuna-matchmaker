@@ -219,14 +219,14 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> MatchFunc for Pallet<T> {
+impl MatchFunc {
 
-	fn queue() -> bool {
+	fn queue(&self) -> bool {
 		true
 	}
 }
 
 pub trait MatchFunc {
 
-	fn queue() -> bool;
+	fn queue(&self) -> bool;
 }
