@@ -222,7 +222,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl MatchFunc {
+impl<T: Config> MatchFunc for  Pallet<T> {
 
 	fn queue(&self) -> bool {
 		true
