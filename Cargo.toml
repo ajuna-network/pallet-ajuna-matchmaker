@@ -15,6 +15,9 @@ targets = ['x86_64-unknown-linux-gnu']
 # external dependencies
 codec = {default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0'}
 
+# primitives
+sp-std = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
+
 # Substrate dependencies
 frame-benchmarking = {default-features = false, optional = true, version = '3.1.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
 frame-support = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
@@ -31,6 +34,7 @@ default = ['std']
 runtime-benchmarks = ['frame-benchmarking']
 std = [
 	'codec/std',
+	'sp-std/std',
 	'frame-support/std',
 	'frame-system/std',
 	'frame-benchmarking/std',
