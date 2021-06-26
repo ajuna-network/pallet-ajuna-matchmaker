@@ -40,7 +40,7 @@ where
 	/// Implementation note: Call in `drop` to increase ergonomics.
 	fn commit(&self);
 	/// Push an item onto the end of the queue.
-	fn push(&mut self, i: Item);
+	fn push(&mut self, j: ItemKey, i: Item) -> bool;
 	/// Pop an item from the start of the queue.
 	///
 	/// Returns `None` if the queue is empty.
@@ -84,7 +84,7 @@ where
 	Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageMap<BufferIndex, Item, Query = Item>,
-	N: StorageMap<ItemKey, Item, Query = Item>,
+	N: StorageMap<ItemKey, BufferIndex, Query = BufferIndex>,
 {
 	start: BufferIndex,
 	end: BufferIndex,
@@ -97,7 +97,7 @@ ItemKey: Codec + EncodeLike,
 Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageMap<BufferIndex, Item, Query = Item>,
-	N: StorageMap<ItemKey, Item, Query = Item>,
+	N: StorageMap<ItemKey, BufferIndex, Query = BufferIndex>,
 {
 	/// Create a new `RingBufferTransient` that backs the ringbuffer implementation.
 	///
@@ -118,7 +118,7 @@ where
 	Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageMap<BufferIndex, Item, Query = Item>,
-	N: StorageMap<ItemKey, Item, Query = Item>,
+	N: StorageMap<ItemKey, BufferIndex, Query = BufferIndex>,
 {
 	/// Commit on `drop`.
 	fn drop(&mut self) {
@@ -133,7 +133,7 @@ where
 	Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageMap<BufferIndex, Item, Query = Item>,
-	N: StorageMap<ItemKey, Item, Query = Item>,
+	N: StorageMap<ItemKey, BufferIndex, Query = BufferIndex>,
 {
 	/// Commit the (potentially) changed bounds to storage.
 	fn commit(&self) {
@@ -143,7 +143,16 @@ where
 	/// Push an item onto the end of the queue.
 	///
 	/// Will insert the new item, but will not update the bounds in storage.
-	fn push(&mut self, item: Item) {
+	fn push(&mut self, item_key: ItemKey, item: Item) -> bool {
+		
+		// check if there is already such a key queued
+		if N::contains_key(&item_key) {
+			return false
+		}
+		else {
+			N::insert(item_key, self.end);
+		}
+
 		M::insert(self.end, item);
 		// this will intentionally overflow and wrap around when bonds_end
 		// reaches `Index::max_value` because we want a ringbuffer.
@@ -154,6 +163,8 @@ where
 			self.start = self.start.wrapping_add(1 as u16);
 		}
 		self.end = next_index;
+
+		true
 	}
 
 	/// Pop an item from the start of the queue.
@@ -228,7 +239,7 @@ mod tests {
 	decl_storage! {
 		trait Store for Module<T: Config> as RingBufferTest {
 			TestMap get(fn get_test_value): map hasher(twox_64_concat) TestIdx => SomeStruct;
-			TestList get(fn get_test_list): map hasher(twox_64_concat) SomeKey => SomeStruct;
+			TestList get(fn get_test_list): map hasher(twox_64_concat) SomeKey => TestIdx;
 			TestRange get(fn get_test_range): (TestIdx, TestIdx) = (0, 0);
 		}
 	}
@@ -306,7 +317,8 @@ mod tests {
 	fn simple_push() {
 		new_test_ext().execute_with(|| {
 			let mut ring: Box<RingBuffer> = Box::new(Transient::new());
-			ring.push(SomeStruct { foo: 1, bar: 2 });
+			let some_struct = SomeStruct { foo: 1, bar: 2 };
+			ring.push(some_struct.foo.clone(), some_struct);
 			ring.commit();
 			let start_end = TestModule::get_test_range();
 			assert_eq!(start_end, (0, 1));
@@ -322,7 +334,8 @@ mod tests {
 
 			assert_eq!(0, ring.size());
 
-			ring.push(SomeStruct { foo: 1, bar: 2 });
+			let some_struct = SomeStruct { foo: 1, bar: 2 };
+			ring.push(some_struct.foo.clone(), some_struct);
 			ring.commit();
 
 			let start_end = TestModule::get_test_range();
@@ -331,7 +344,8 @@ mod tests {
 			assert_eq!(some_struct, SomeStruct { foo: 1, bar: 2 });
             assert_eq!(1, ring.size());
 
-            ring.push(SomeStruct { foo: 1, bar: 2 });
+			let some_struct = SomeStruct { foo: 2, bar: 2 };
+			ring.push(some_struct.foo.clone(), some_struct);
 			ring.commit();
             assert_eq!(2, ring.size());
 
@@ -343,7 +357,8 @@ mod tests {
 		new_test_ext().execute_with(|| {
 			{
 				let mut ring: Box<RingBuffer> = Box::new(Transient::new());
-				ring.push(SomeStruct { foo: 1, bar: 2 });
+				let some_struct = SomeStruct { foo: 1, bar: 2 };
+				ring.push(some_struct.foo.clone(), some_struct);
 			}
 			let start_end = TestModule::get_test_range();
 			assert_eq!(start_end, (0, 1));
@@ -356,7 +371,8 @@ mod tests {
 	fn simple_pop() {
 		new_test_ext().execute_with(|| {
 			let mut ring: Box<RingBuffer> = Box::new(Transient::new());
-			ring.push(SomeStruct { foo: 1, bar: 2 });
+			let some_struct = SomeStruct { foo: 1, bar: 2 };
+			ring.push(some_struct.foo.clone(), some_struct);
 
 			let item = ring.pop();
 			ring.commit();
@@ -367,12 +383,40 @@ mod tests {
 	}
 
 	#[test]
+	fn duplicate_check() {
+		new_test_ext().execute_with(|| {
+			
+			let mut ring: Box<RingBuffer> = Box::new(Transient::new());
+
+			let some_struct = SomeStruct { foo: 1, bar: 2 };
+			ring.push(some_struct.foo.clone(), some_struct);
+
+			assert_eq!(1, ring.size());
+
+			let some_struct = SomeStruct { foo: 1, bar: 2 };
+			ring.push(some_struct.foo.clone(), some_struct);
+			
+			// no change as its a duplicate
+			assert_eq!(1, ring.size());
+
+			let some_struct = SomeStruct { foo: 2, bar: 2 };
+			ring.push(some_struct.foo.clone(), some_struct);
+
+			assert_eq!(2, ring.size());
+		})
+	}
+
+	#[test]
 	fn overflow_wrap_around() {
 		new_test_ext().execute_with(|| {
 			let mut ring: Box<RingBuffer> = Box::new(Transient::new());
 
+			let mut key:u64 = 0;
+
 			for i in 1..(TestIdx::max_value() as u64) + 2 {
-				ring.push(SomeStruct { foo: 42, bar: i });
+				let some_struct = SomeStruct { foo: key, bar: i };
+				key = key + 1;
+				ring.push(some_struct.foo.clone(), some_struct);
 			}
 			ring.commit();
 			let start_end = TestModule::get_test_range();
@@ -403,7 +447,9 @@ mod tests {
 			);
 
 			for i in 1..4 {
-				ring.push(SomeStruct { foo: 21, bar: i });
+				let some_struct = SomeStruct { foo: key, bar: i };
+				key = key + 1;
+				ring.push(some_struct.foo.clone(), some_struct);
 			}
 			ring.commit();
 			let start_end = TestModule::get_test_range();

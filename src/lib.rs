@@ -63,7 +63,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_list)]
-	pub type BufferList<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, PlayerStruct<T::AccountId>, ValueQuery>;
+	pub type BufferList<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BufferIndex, ValueQuery>;
 
 	// Default value for Nonce
 	#[pallet::type_value]
@@ -162,7 +162,7 @@ pub mod pallet {
 			let _user = ensure_root(origin)?;
 			let mut queue = Self::queue_transient();
 			let player = PlayerStruct{ account };
-			queue.push(player.clone());
+			queue.push(player.account.clone(), player.clone());
 			Self::deposit_event(Event::Queued(player));	
 			Ok(())
 		}
@@ -226,7 +226,7 @@ impl<T: Config> Pallet<T> {
 		let mut queue = Self::queue_transient();
 
 		let player = PlayerStruct{ account };
-		queue.push(player.clone());
+		queue.push(player.account.clone(), player.clone());
 
 		Self::deposit_event(Event::Queued(player));	
 
