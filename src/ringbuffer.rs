@@ -46,8 +46,6 @@ where
 	fn pop(&mut self) -> Option<Item>;
 	/// Return whether the queue is empty.
 	fn is_empty(&self) -> bool;
-    /// Return true if the size of the queue is equal or greater then the min_size.
-    fn min_size_reached(&self, min_size: BufferIndex) -> bool;
     /// Return the size of the ringbuffer queue.
     fn size(&self) -> BufferIndex;
 }
@@ -167,13 +165,9 @@ where
 		self.start == self.end
 	}
 
-    /// Return the current size of the ring buffer queue.
-	fn min_size_reached(&self, min_size: BufferIndex) -> bool {
-        min_size <= self.size() 
-    }
-
     /// Return the current size of the ring buffer as a BufferIndex.
     fn size(&self) -> BufferIndex {
+		
         if self.start <= self.end {
             return self.end - self.start
         } else {
@@ -311,6 +305,9 @@ mod tests {
 	fn size_tests() {
 		new_test_ext().execute_with(|| {
 			let mut ring: Box<RingBuffer> = Box::new(Transient::new());
+
+			assert_eq!(0, ring.size());
+
 			ring.push(SomeStruct { foo: 1, bar: 2 });
 			ring.commit();
 
@@ -319,13 +316,11 @@ mod tests {
 			let some_struct = TestModule::get_test_value(0);
 			assert_eq!(some_struct, SomeStruct { foo: 1, bar: 2 });
             assert_eq!(1, ring.size());
-            assert_eq!(false, ring.min_size_reached(2));
-            assert_eq!(true, ring.min_size_reached(1));
+
             ring.push(SomeStruct { foo: 1, bar: 2 });
 			ring.commit();
             assert_eq!(2, ring.size());
-            assert_eq!(true, ring.min_size_reached(2));
-            assert_eq!(true, ring.min_size_reached(1));
+
 		})
 	}
 

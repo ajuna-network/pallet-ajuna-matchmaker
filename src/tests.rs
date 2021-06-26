@@ -21,3 +21,31 @@ fn correct_error_for_none_value() {
 		);
 	});
 }
+
+#[test]
+fn test_add_queue() {
+	new_test_ext().execute_with(|| {
+
+		let player1 = 1;
+		let player2 = 2;
+
+		assert_eq!(MatchMaker::do_try_match(), None);
+		assert_eq!(MatchMaker::do_add_queue(player1), true);
+		assert_eq!(MatchMaker::do_try_match(), None);
+		assert_eq!(MatchMaker::do_add_queue(player2), true);
+		assert_eq!(MatchMaker::do_try_match(), Some([1, 2]));
+		assert_eq!(MatchMaker::do_try_match(), None);
+
+		assert_eq!(MatchMaker::do_add_queue(player1), true);
+		assert_eq!(MatchMaker::do_add_queue(player2), true);
+		MatchMaker::do_empty_queue();
+		assert_eq!(MatchMaker::do_try_match(), None);
+	});
+}
+
+#[test]
+fn test_queue() {
+	new_test_ext().execute_with(|| {
+
+	});
+}

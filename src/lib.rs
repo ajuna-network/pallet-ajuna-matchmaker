@@ -27,7 +27,6 @@ use ringbuffer::{RingBufferTrait, RingBufferTransient, BufferIndex};
 #[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct PlayerStruct<AccountId> {
-	ranking: u32,
 	account: AccountId,
 }
 
@@ -91,6 +90,10 @@ pub mod pallet {
 		NoneValue,
 		/// Errors should have helpful documentation associated with them.
 		StorageOverflow,
+		/// Queue size is to low.
+		QueueSizeToLow,
+		/// Queue is empty.
+		QueueIsEmpty,
 	}
 
 	#[pallet::hooks]
@@ -140,12 +143,12 @@ pub mod pallet {
 
 		/// Add an item to the queue
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn add_to_queue(origin: OriginFor<T>, ranking: u32, account: T::AccountId) -> DispatchResult {
+		pub fn add_to_queue(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
 			// only a user can push into the queue
-			let _user = ensure_signed(origin)?;
+			let _user = ensure_root(origin)?;
 	
 			let mut queue = Self::queue_transient();
-			let player = PlayerStruct{ ranking, account };
+			let player = PlayerStruct{ account };
 			queue.push(player.clone());
 		
 			Self::deposit_event(Event::Queued(player));	
@@ -171,7 +174,7 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn pop_from_queue(origin: OriginFor<T>) -> DispatchResult {
 			// only a user can pop from the queue
-			let _user = ensure_signed(origin)?;		
+			let _user = ensure_root(origin)?;		
 
 			let mut queue = Self::queue_transient();
 			if let Some(player_struct) = queue.pop() {
@@ -181,30 +184,14 @@ pub mod pallet {
 			Ok(())	
 		}
 
-		/// Try to create a match with a certain amount of players.
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn make_match(origin: OriginFor<T>) -> DispatchResult {
-			// only a user can pop from the queue
-			let _user = ensure_signed(origin)?;	
-						
-			let mut queue = Self::queue_transient();
-			ensure!(queue.min_size_reached(1), "There aren't enough players queued currently.");
-			
-			let mut player_array: [PlayerStruct<T::AccountId>; 2] = Default::default();
-
-			for p in 0..2 {
-				if let Some(player_struct) = queue.pop() {
-					player_array[p] = player_struct.clone();
-					Self::deposit_event(Event::Popped(player_struct));	
-				}
-				else
-				{
-					return Err(Error::<T>::NoneValue)?
-				}
-			}
-
-			Ok(())	
-		}
+		// /// Remove and return an item from the queue
+		//#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		//pub fn try_match(origin: OriginFor<T>) -> DispatchResult {
+		//	// only a user can pop from the queue
+		//	let _sender = ensure_root(origin)?;		
+		//	let result = Self::do_try_match();
+		//	Ok(())	
+		//}
 	}
 }
 
@@ -220,16 +207,77 @@ impl<T: Config> Pallet<T> {
 			<Self as Store>::BufferMap,
 		>::new())
 	}
+	
+	fn do_add_queue(account: T::AccountId) -> bool {
+		
+		let mut queue = Self::queue_transient();
+
+		let player = PlayerStruct{ account };
+		queue.push(player.clone());
+
+		Self::deposit_event(Event::Queued(player));	
+
+		// do duplicate check for false later
+		true
+	}
+
+	fn do_empty_queue() {
+
+		let mut queue = Self::queue_transient();
+
+		while queue.size() > 0 {
+			queue.pop();
+		}
+	}
+
+	fn do_try_match() -> Option<[T::AccountId; 2]> {
+		
+		let mut queue = Self::queue_transient();
+
+		if queue.size() < 2 {
+			return None;
+		}
+
+		let mut accounts: [T::AccountId; 2] = Default::default();
+
+		if let Some(player1) = queue.pop() {
+			accounts[0] = player1.account.clone();
+			Self::deposit_event(Event::Popped(player1));	
+		}
+
+		if let Some(player2) = queue.pop() {
+			accounts[1] = player2.account.clone();
+			Self::deposit_event(Event::Popped(player2));	
+		}
+
+		Some(accounts)
+	}
+
 }
 
-impl<T: Config> MatchFunc for  Pallet<T> {
+impl<T: Config> MatchFunc<T::AccountId> for Pallet<T> {
 
-	fn queue(&self) -> bool {
-		true
+	fn empty_queue() {
+		
+		Self::do_empty_queue();
+	}
+
+	fn add_queue(account: T::AccountId) -> bool {
+
+		Self::do_add_queue(account)
+	}
+
+	fn try_match() -> Option<[T::AccountId; 2]> {
+		
+		Self::do_try_match()
 	}
 }
 
-pub trait MatchFunc {
+pub trait MatchFunc<AccountId> {
 
-	fn queue(&self) -> bool;
+	fn empty_queue();
+
+	fn add_queue(account: AccountId) -> bool;
+
+	fn try_match() -> Option<[AccountId; 2]>;
 }
