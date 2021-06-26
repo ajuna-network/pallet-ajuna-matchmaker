@@ -28,8 +28,9 @@ use core::marker::PhantomData;
 use frame_support::storage::{StorageMap, StorageValue};
 
 /// Trait object presenting the ringbuffer interface.
-pub trait RingBufferTrait<Item>
+pub trait RingBufferTrait<ItemKey, Item>
 where
+	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
 {
 	/// Store all changes made in the underlying storage.
@@ -77,27 +78,31 @@ impl_wrapping_ops!(u64);
 pub type BufferIndex = u16;
 
 /// Transient backing data that is the backbone of the trait object.
-pub struct RingBufferTransient<Item, B, M>
+pub struct RingBufferTransient<ItemKey, Item, B, M, N>
 where
+	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageMap<BufferIndex, Item, Query = Item>,
+	N: StorageMap<ItemKey, Item, Query = Item>,
 {
 	start: BufferIndex,
 	end: BufferIndex,
-	_phantom: PhantomData<(Item, B, M)>,
+	_phantom: PhantomData<(ItemKey, Item, B, M, N)>,
 }
 
-impl<Item, B, M> RingBufferTransient<Item, B, M>
+impl<ItemKey, Item, B, M, N> RingBufferTransient<ItemKey, Item, B, M, N>
 where
-	Item: Codec + EncodeLike,
+ItemKey: Codec + EncodeLike,
+Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageMap<BufferIndex, Item, Query = Item>,
+	N: StorageMap<ItemKey, Item, Query = Item>,
 {
 	/// Create a new `RingBufferTransient` that backs the ringbuffer implementation.
 	///
 	/// Initializes itself from the bounds storage `B`.
-	pub fn new() -> RingBufferTransient<Item, B, M> {
+	pub fn new() -> RingBufferTransient<ItemKey, Item, B, M, N> {
 		let (start, end) = B::get();
 		RingBufferTransient {
 			start,
@@ -107,24 +112,28 @@ where
 	}
 }
 
-impl<Item, B, M> Drop for RingBufferTransient<Item, B, M>
+impl<ItemKey, Item, B, M, N> Drop for RingBufferTransient<ItemKey, Item, B, M, N>
 where
+	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageMap<BufferIndex, Item, Query = Item>,
+	N: StorageMap<ItemKey, Item, Query = Item>,
 {
 	/// Commit on `drop`.
 	fn drop(&mut self) {
-		<Self as RingBufferTrait<Item>>::commit(self);
+		<Self as RingBufferTrait<ItemKey, Item>>::commit(self);
 	}
 }
 
 /// Ringbuffer implementation based on `RingBufferTransient`
-impl<Item, B, M> RingBufferTrait<Item> for RingBufferTransient<Item, B, M>
+impl<ItemKey, Item, B, M, N> RingBufferTrait<ItemKey, Item> for RingBufferTransient<ItemKey, Item, B, M, N>
 where
+	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageMap<BufferIndex, Item, Query = Item>,
+	N: StorageMap<ItemKey, Item, Query = Item>,
 {
 	/// Commit the (potentially) changed bounds to storage.
 	fn commit(&self) {
@@ -208,6 +217,8 @@ mod tests {
 
 	type TestIdx = BufferIndex;
 
+	type SomeKey = u64;
+
 	#[derive(Clone, PartialEq, Encode, Decode, Default, Debug)]
 	pub struct SomeStruct {
 		foo: u64,
@@ -217,6 +228,7 @@ mod tests {
 	decl_storage! {
 		trait Store for Module<T: Config> as RingBufferTest {
 			TestMap get(fn get_test_value): map hasher(twox_64_concat) TestIdx => SomeStruct;
+			TestList get(fn get_test_list): map hasher(twox_64_concat) SomeKey => SomeStruct;
 			TestRange get(fn get_test_range): (TestIdx, TestIdx) = (0, 0);
 		}
 	}
@@ -280,12 +292,14 @@ mod tests {
 	// ringbuffer
 
 	// Trait object that we will be interacting with.
-	type RingBuffer = dyn RingBufferTrait<SomeStruct>;
+	type RingBuffer = dyn RingBufferTrait<SomeKey, SomeStruct>;
 	// Implementation that we will instantiate.
 	type Transient = RingBufferTransient<
+		SomeKey,
 		SomeStruct,
 		<TestModule as Store>::TestRange,
 		<TestModule as Store>::TestMap,
+		<TestModule as Store>::TestList,
 	>;
 
 	#[test]

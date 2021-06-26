@@ -59,7 +59,11 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_value)]
-	pub type BufferMap<T: Config> = StorageMap<_, Twox64Concat, BufferIndex , PlayerStruct<T::AccountId>, ValueQuery>;
+	pub type BufferMap<T: Config> = StorageMap<_, Twox64Concat, BufferIndex, PlayerStruct<T::AccountId>, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_list)]
+	pub type BufferList<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, PlayerStruct<T::AccountId>, ValueQuery>;
 
 	// Default value for Nonce
 	#[pallet::type_value]
@@ -97,7 +101,17 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		// `on_initialize` is executed at the beginning of the block before any extrinsic are
+		// dispatched.
+		//
+		// This function must return the weight consumed by `on_initialize` and `on_finalize`.
+		fn on_initialize(_: T::BlockNumber) -> Weight {
+			// Anything that needs to be done at the start of the block.
+			// We don't do anything here.
+			0
+		}
+	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
 	// These functions materialize as "extrinsics", which are often compared to transactions.
@@ -146,13 +160,10 @@ pub mod pallet {
 		pub fn add_to_queue(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
 			// only a user can push into the queue
 			let _user = ensure_root(origin)?;
-	
 			let mut queue = Self::queue_transient();
 			let player = PlayerStruct{ account };
 			queue.push(player.clone());
-		
 			Self::deposit_event(Event::Queued(player));	
-
 			Ok(())
 		}
 
@@ -200,11 +211,13 @@ impl<T: Config> Pallet<T> {
 	///
 	/// Constructs a ringbuffer transient and returns it as a boxed trait object.
 	/// See [this part of the Rust book](https://doc.rust-lang.org/book/ch17-02-trait-objects.html#trait-objects-perform-dynamic-dispatch)
-	fn queue_transient() -> Box<dyn RingBufferTrait<PlayerStruct<T::AccountId>>> {
+	fn queue_transient() -> Box<dyn RingBufferTrait<T::AccountId,PlayerStruct<T::AccountId>>> {
 		Box::new(RingBufferTransient::<
+			T::AccountId,
 			PlayerStruct<T::AccountId>,
 			<Self as Store>::BufferRange,
 			<Self as Store>::BufferMap,
+			<Self as Store>::BufferList,
 		>::new())
 	}
 	
@@ -258,7 +271,7 @@ impl<T: Config> Pallet<T> {
 impl<T: Config> MatchFunc<T::AccountId> for Pallet<T> {
 
 	fn empty_queue() {
-		
+
 		Self::do_empty_queue();
 	}
 
