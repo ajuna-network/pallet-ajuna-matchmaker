@@ -266,6 +266,10 @@ impl<T: Config> Pallet<T> {
 		Some(accounts)
 	}
 
+	fn do_is_queued(account: T::AccountId) -> bool {
+
+		Self::queue_transient().is_queued(account)
+	}
 }
 
 impl<T: Config> MatchFunc<T::AccountId> for Pallet<T> {
@@ -284,6 +288,11 @@ impl<T: Config> MatchFunc<T::AccountId> for Pallet<T> {
 		
 		Self::do_try_match()
 	}
+
+	fn is_queued(account: T::AccountId) -> bool {
+		
+		Self::do_is_queued(account)
+	}
 }
 
 pub trait MatchFunc<AccountId> {
@@ -293,4 +302,6 @@ pub trait MatchFunc<AccountId> {
 	fn add_queue(account: AccountId) -> bool;
 
 	fn try_match() -> Option<[AccountId; 2]>;
+
+	fn is_queued(account: AccountId) -> bool;
 }

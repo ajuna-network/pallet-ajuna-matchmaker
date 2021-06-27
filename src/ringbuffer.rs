@@ -49,6 +49,8 @@ where
 	fn is_empty(&self) -> bool;
     /// Return the size of the ringbuffer queue.
     fn size(&self) -> BufferIndex;
+	/// Return whether the item_key is queued or not.
+	fn is_queued(&self, j: ItemKey) -> bool;
 }
 
 // There is no equivalent trait in std so we create one.
@@ -194,6 +196,11 @@ where
             return (BufferIndex::MAX - self.start) + self.end;
         }
     }
+
+	/// Return whether the item_key is queued or not.
+	fn is_queued(&self, item_key: ItemKey) -> bool {
+		N::contains_key(&item_key)
+	}
 }
 
 #[cfg(test)]
@@ -393,11 +400,15 @@ mod tests {
 
 			assert_eq!(1, ring.size());
 
+			assert_eq!(true, ring.is_queued(1));
+
 			let some_struct = SomeStruct { foo: 1, bar: 2 };
 			ring.push(some_struct.foo.clone(), some_struct);
 			
 			// no change as its a duplicate
 			assert_eq!(1, ring.size());
+
+			assert_eq!(false, ring.is_queued(2));
 
 			let some_struct = SomeStruct { foo: 2, bar: 2 };
 			ring.push(some_struct.foo.clone(), some_struct);
