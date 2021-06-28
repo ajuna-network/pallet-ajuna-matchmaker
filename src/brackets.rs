@@ -89,7 +89,7 @@ pub struct BracketsTransient<ItemKey, Item, B, M, N>
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
-	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	B: StorageMap<QueueCluster, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
 	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
 {
@@ -101,7 +101,7 @@ impl<ItemKey, Item, B, M, N> BracketsTransient<ItemKey, Item, B, M, N>
 where
 ItemKey: Codec + EncodeLike,
 Item: Codec + EncodeLike,
-	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	B: StorageMap<QueueCluster, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
 	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
 {
@@ -109,7 +109,8 @@ Item: Codec + EncodeLike,
 	///
 	/// Initializes itself from the bounds storage `B`.
 	pub fn new() -> BracketsTransient<ItemKey, Item, B, M, N> {
-		let (start, end) = B::get();
+		let queue_cluster:u8 = 0;
+		let (start, end) = B::get(queue_cluster);
 		let mut index_vector = Vec::new();
 		index_vector.push((start, end));
 		BracketsTransient {
@@ -123,7 +124,7 @@ impl<ItemKey, Item, B, M, N> Drop for BracketsTransient<ItemKey, Item, B, M, N>
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
-	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	B: StorageMap<QueueCluster, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
 	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
 {
@@ -138,7 +139,7 @@ impl<ItemKey, Item, B, M, N> BracketsTrait<ItemKey, Item> for BracketsTransient<
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
-	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	B: StorageMap<QueueCluster, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
 	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
 {
@@ -148,7 +149,7 @@ where
 		let queue_cluster:u8 = 0;
 		let (v_start, v_end) = self.index_vector[queue_cluster as usize];
 
-		B::put((v_start, v_end));
+		B::insert(queue_cluster, (v_start, v_end));
 	}
 
 	/// Push an item onto the end of the queue.
@@ -276,7 +277,7 @@ mod tests {
 		trait Store for Module<T: Config> as BracketsTest {
 			TestMap get(fn get_test_value): double_map hasher(twox_64_concat) QueueCluster, hasher(twox_64_concat) TestIdx => SomeKey;
 			TestList get(fn get_test_list): double_map hasher(twox_64_concat) QueueCluster, hasher(twox_64_concat) SomeKey => SomeStruct;
-			TestRange get(fn get_test_range): (TestIdx, TestIdx) = (0, 0);
+			TestRange get(fn get_test_range): map hasher(twox_64_concat) QueueCluster => (TestIdx, TestIdx);
 		}
 	}
 
@@ -356,7 +357,7 @@ mod tests {
 			let some_struct = SomeStruct { foo: 1, bar: 2 };
 			ring.push(some_struct.foo.clone(), some_struct);
 			ring.commit();
-			let start_end = TestModule::get_test_range();
+			let start_end = TestModule::get_test_range(0);
 			assert_eq!(start_end, (0, 1));
 			let some_key = TestModule::get_test_value(0, 0);
 			let some_struct =  TestModule::get_test_list(0, some_key);
@@ -375,7 +376,7 @@ mod tests {
 			ring.push(some_struct.foo.clone(), some_struct);
 			ring.commit();
 
-			let start_end = TestModule::get_test_range();
+			let start_end = TestModule::get_test_range(0);
 			assert_eq!(start_end, (0, 1));
 			let some_key = TestModule::get_test_value(0, 0);
 			let some_struct =  TestModule::get_test_list(0, some_key);
@@ -398,7 +399,7 @@ mod tests {
 				let some_struct = SomeStruct { foo: 1, bar: 2 };
 				ring.push(some_struct.foo.clone(), some_struct);
 			}
-			let start_end = TestModule::get_test_range();
+			let start_end = TestModule::get_test_range(0);
 			assert_eq!(start_end, (0, 1));
 			let some_key = TestModule::get_test_value(0, 0);
 			let some_struct =  TestModule::get_test_list(0, some_key);
@@ -416,7 +417,7 @@ mod tests {
 			let item = ring.pop();
 			ring.commit();
 			assert!(item.is_some());
-			let start_end = TestModule::get_test_range();
+			let start_end = TestModule::get_test_range(0);
 			assert_eq!(start_end, (1, 1));
 		})
 	}
@@ -462,7 +463,7 @@ mod tests {
 				assert_eq!(true, ring.push(some_struct.foo.clone(), some_struct));
 			}
 			ring.commit();
-			let start_end = TestModule::get_test_range();
+			let start_end = TestModule::get_test_range(0);
 			assert_eq!(
 				start_end,
 				(1, 0),
@@ -471,7 +472,7 @@ mod tests {
 
 			let item = ring.pop();
 			ring.commit();
-			let (start, end) = TestModule::get_test_range();
+			let (start, end) = TestModule::get_test_range(0);
 			assert_eq!(start..end, 2..0);
 			let item = item.expect("an item should be returned");
 			assert_eq!(
@@ -481,7 +482,7 @@ mod tests {
 
 			let item = ring.pop();
 			ring.commit();
-			let (start, end) = TestModule::get_test_range();
+			let (start, end) = TestModule::get_test_range(0);
 			assert_eq!(start..end, 3..0);
 			let item = item.expect("an item should be returned");
 			assert_eq!(
@@ -495,7 +496,7 @@ mod tests {
 				assert_eq!(true, ring.push(some_struct.foo.clone(), some_struct));
 			}
 			ring.commit();
-			let start_end = TestModule::get_test_range();
+			let start_end = TestModule::get_test_range(0);
 			assert_eq!(start_end, (4, 3));
 		})
 	}

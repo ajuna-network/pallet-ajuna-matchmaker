@@ -70,7 +70,7 @@ pub mod pallet {
 	pub fn BufferRangeDefault<T: Config>() -> (BufferIndex, BufferIndex) { (0, 0) }
 	#[pallet::storage]
 	#[pallet::getter(fn range)]
-	pub type BufferRange<T: Config> = StorageValue<_, (BufferIndex, BufferIndex), ValueQuery, BufferRangeDefault<T>>;
+	pub type BufferRange<T: Config> = StorageMap<_, Twox64Concat, QueueCluster, (BufferIndex, BufferIndex), ValueQuery, BufferRangeDefault<T>>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
