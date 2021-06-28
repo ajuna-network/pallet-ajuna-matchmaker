@@ -67,15 +67,15 @@ pub mod pallet {
 	#[pallet::type_value]
 	pub fn BracketIndicesDefault<T: Config>() -> (BufferIndex, BufferIndex) { (0, 0) }
 	#[pallet::storage]
-	#[pallet::getter(fn range)]
+	#[pallet::getter(fn indices)]
 	pub type BracketIndices<T: Config> = StorageMap<_, Twox64Concat, QueueCluster, (BufferIndex, BufferIndex), ValueQuery, BracketIndicesDefault<T>>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn get_value)]
+	#[pallet::getter(fn index_key)]
 	pub type BracketIndexKeyMap<T: Config> = StorageDoubleMap<_, Twox64Concat, QueueCluster, Twox64Concat, BufferIndex, T::AccountId, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn get_list)]
+	#[pallet::getter(fn key_value)]
 	pub type BracketKeyValueMap<T: Config> = StorageDoubleMap<_, Twox64Concat, QueueCluster, Twox64Concat, T::AccountId, PlayerStruct<T::AccountId>, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
@@ -162,16 +162,16 @@ pub mod pallet {
 		}
 
 		/// Add an item to the queue
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn add_to_queue(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
-			// only a user can push into the queue
-			let _user = ensure_root(origin)?;
-			let mut queue = Self::queue_transient();
-			let player = PlayerStruct{ account };
-			queue.push(player.account.clone(), player.clone());
-			Self::deposit_event(Event::Queued(player));	
-			Ok(())
-		}
+		//#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		//pub fn add_to_queue(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
+		//	// only a user can push into the queue
+		//	let _user = ensure_root(origin)?;
+		//	let mut queue = Self::queue_transient();
+		//	let player = PlayerStruct{ account };
+		//	queue.push(player.account.clone(), player.clone());
+		//	Self::deposit_event(Event::Queued(player));	
+		//	Ok(())
+		//}
 
 		/// Add several items to the queue
 		//#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
@@ -229,7 +229,7 @@ impl<T: Config> Pallet<T> {
 	}
 	
 	fn do_add_queue(account: T::AccountId) -> bool {
-		
+		let queue_cluster:u8 = 0;
 		let mut queue = Self::queue_transient();
 
 		let player = PlayerStruct{ account };

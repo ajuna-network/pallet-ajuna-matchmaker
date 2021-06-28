@@ -157,10 +157,11 @@ where
 	/// Commit the (potentially) changed bounds to storage.
 	fn commit(&self) {
 
-		let queue_cluster:u8 = 0;
-		let (v_start, v_end) = self.index_vector[queue_cluster as usize];
-
-		B::insert(queue_cluster, (v_start, v_end));
+		// commit indicies on all brackets
+		for i in 0..self.index_vector.len() {
+			let (v_start, v_end) = self.index_vector[i];
+			B::insert(i as QueueCluster, (v_start, v_end));
+		}
 	}
 
 	/// Push an item onto the end of the queue.
