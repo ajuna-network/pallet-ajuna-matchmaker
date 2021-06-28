@@ -59,15 +59,11 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_value)]
-	pub type BufferMap<T: Config> = StorageMap<_, Twox64Concat, BufferIndex, PlayerStruct<T::AccountId>, ValueQuery>;
+	pub type BufferMap<T: Config> = StorageMap<_, Twox64Concat, BufferIndex, T::AccountId, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_list)]
-	pub type BufferList<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BufferIndex, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_list2)]
-	pub type BufferList2<T: Config> = StorageMap<_, Twox64Concat, BufferIndex, T::AccountId, ValueQuery>;
+	pub type BufferList<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, PlayerStruct<T::AccountId>, ValueQuery>;
 
 	// Default value for Nonce
 	#[pallet::type_value]
@@ -222,7 +218,6 @@ impl<T: Config> Pallet<T> {
 			<Self as Store>::BufferRange,
 			<Self as Store>::BufferMap,
 			<Self as Store>::BufferList,
-			<Self as Store>::BufferList2,
 		>::new())
 	}
 	

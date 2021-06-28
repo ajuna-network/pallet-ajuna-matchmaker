@@ -78,33 +78,31 @@ impl_wrapping_ops!(u64);
 pub type BufferIndex = u16;
 
 /// Transient backing data that is the backbone of the trait object.
-pub struct RingBufferTransient<ItemKey, Item, B, M, N, O>
+pub struct RingBufferTransient<ItemKey, Item, B, M, N>
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageMap<BufferIndex, Item, Query = Item>,
-	N: StorageMap<ItemKey, BufferIndex, Query = BufferIndex>,
-	O: StorageMap<BufferIndex, ItemKey,  Query = ItemKey>,
+	M: StorageMap<BufferIndex, ItemKey, Query = ItemKey>,
+	N: StorageMap<ItemKey, Item, Query = Item>,
 {
 	start: BufferIndex,
 	end: BufferIndex,
-	_phantom: PhantomData<(ItemKey, Item, B, M, N, O)>,
+	_phantom: PhantomData<(ItemKey, Item, B, M, N)>,
 }
 
-impl<ItemKey, Item, B, M, N, O> RingBufferTransient<ItemKey, Item, B, M, N, O>
+impl<ItemKey, Item, B, M, N> RingBufferTransient<ItemKey, Item, B, M, N>
 where
 ItemKey: Codec + EncodeLike,
 Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageMap<BufferIndex, Item, Query = Item>,
-	N: StorageMap<ItemKey, BufferIndex, Query = BufferIndex>,
-	O: StorageMap<BufferIndex, ItemKey,  Query = ItemKey>,
+	M: StorageMap<BufferIndex, ItemKey, Query = ItemKey>,
+	N: StorageMap<ItemKey, Item, Query = Item>,
 {
 	/// Create a new `RingBufferTransient` that backs the ringbuffer implementation.
 	///
 	/// Initializes itself from the bounds storage `B`.
-	pub fn new() -> RingBufferTransient<ItemKey, Item, B, M, N, O> {
+	pub fn new() -> RingBufferTransient<ItemKey, Item, B, M, N> {
 		let (start, end) = B::get();
 		RingBufferTransient {
 			start,
@@ -114,14 +112,13 @@ Item: Codec + EncodeLike,
 	}
 }
 
-impl<ItemKey, Item, B, M, N, O> Drop for RingBufferTransient<ItemKey, Item, B, M, N, O>
+impl<ItemKey, Item, B, M, N> Drop for RingBufferTransient<ItemKey, Item, B, M, N>
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageMap<BufferIndex, Item, Query = Item>,
-	N: StorageMap<ItemKey, BufferIndex, Query = BufferIndex>,
-	O: StorageMap<BufferIndex, ItemKey,  Query = ItemKey>,
+	M: StorageMap<BufferIndex, ItemKey, Query = ItemKey>,
+	N: StorageMap<ItemKey, Item, Query = Item>,
 {
 	/// Commit on `drop`.
 	fn drop(&mut self) {
@@ -130,14 +127,13 @@ where
 }
 
 /// Ringbuffer implementation based on `RingBufferTransient`
-impl<ItemKey, Item, B, M, N, O> RingBufferTrait<ItemKey, Item> for RingBufferTransient<ItemKey, Item, B, M, N, O>
+impl<ItemKey, Item, B, M, N> RingBufferTrait<ItemKey, Item> for RingBufferTransient<ItemKey, Item, B, M, N>
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageMap<BufferIndex, Item, Query = Item>,
-	N: StorageMap<ItemKey, BufferIndex, Query = BufferIndex>,
-	O: StorageMap<BufferIndex, ItemKey,  Query = ItemKey>,
+	M: StorageMap<BufferIndex, ItemKey, Query = ItemKey>,
+	N: StorageMap<ItemKey, Item, Query = Item>,
 {
 	/// Commit the (potentially) changed bounds to storage.
 	fn commit(&self) {
@@ -150,15 +146,14 @@ where
 	fn push(&mut self, item_key: ItemKey, item: Item) -> bool {
 		
 		// check if there is already such a key queued
-		if N::contains_key(&item_key) || O::contains_key(&self.end) {
+		if N::contains_key(&item_key) {
 			return false
 		}
-		else {
-			N::insert(&item_key, self.end);
-			O::insert(self.end, item_key);
-		}
 
-		M::insert(self.end, item);
+		// insert the item key and the item
+		N::insert(&item_key, item);
+		M::insert(self.end, item_key);
+
 		// this will intentionally overflow and wrap around when bonds_end
 		// reaches `Index::max_value` because we want a ringbuffer.
 		let next_index = self.end.wrapping_add(1 as u16);
@@ -179,9 +174,8 @@ where
 		if self.is_empty() {
 			return None;
 		}
-		let item = M::take(self.start);
-		let item_key = O::take(self.start);
-		N::remove(item_key);
+		let item_key = M::take(self.start);
+		let item = N::take(item_key);
 
 		self.start = self.start.wrapping_add(1 as u16);
 
@@ -246,9 +240,8 @@ mod tests {
 
 	decl_storage! {
 		trait Store for Module<T: Config> as RingBufferTest {
-			TestMap get(fn get_test_value): map hasher(twox_64_concat) TestIdx => SomeStruct;
-			TestList get(fn get_test_list): map hasher(twox_64_concat) SomeKey => TestIdx;
-			TestList2 get(fn get_test_list2): map hasher(twox_64_concat) TestIdx => SomeKey;
+			TestMap get(fn get_test_value): map hasher(twox_64_concat) TestIdx => SomeKey;
+			TestList get(fn get_test_list): map hasher(twox_64_concat) SomeKey => SomeStruct;
 			TestRange get(fn get_test_range): (TestIdx, TestIdx) = (0, 0);
 		}
 	}
@@ -320,7 +313,6 @@ mod tests {
 		<TestModule as Store>::TestRange,
 		<TestModule as Store>::TestMap,
 		<TestModule as Store>::TestList,
-		<TestModule as Store>::TestList2,
 	>;
 
 	#[test]
@@ -332,7 +324,8 @@ mod tests {
 			ring.commit();
 			let start_end = TestModule::get_test_range();
 			assert_eq!(start_end, (0, 1));
-			let some_struct = TestModule::get_test_value(0);
+			let some_key = TestModule::get_test_value(0);
+			let some_struct =  TestModule::get_test_list(some_key);
 			assert_eq!(some_struct, SomeStruct { foo: 1, bar: 2 });
 		})
 	}
@@ -350,7 +343,8 @@ mod tests {
 
 			let start_end = TestModule::get_test_range();
 			assert_eq!(start_end, (0, 1));
-			let some_struct = TestModule::get_test_value(0);
+			let some_key = TestModule::get_test_value(0);
+			let some_struct =  TestModule::get_test_list(some_key);
 			assert_eq!(some_struct, SomeStruct { foo: 1, bar: 2 });
             assert_eq!(1, ring.size());
 
@@ -372,7 +366,8 @@ mod tests {
 			}
 			let start_end = TestModule::get_test_range();
 			assert_eq!(start_end, (0, 1));
-			let some_struct = TestModule::get_test_value(0);
+			let some_key = TestModule::get_test_value(0);
+			let some_struct =  TestModule::get_test_list(some_key);
 			assert_eq!(some_struct, SomeStruct { foo: 1, bar: 2 });
 		})
 	}
@@ -460,9 +455,8 @@ mod tests {
 				let some_struct = SomeStruct { foo: key, bar: i };
 				key = key + 1;
 				assert_eq!(true, ring.push(some_struct.foo.clone(), some_struct));
-				ring.commit();
 			}
-			//ring.commit();
+			ring.commit();
 			let start_end = TestModule::get_test_range();
 			assert_eq!(start_end, (4, 3));
 		})
