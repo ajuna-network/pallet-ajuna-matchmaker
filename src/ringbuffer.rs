@@ -78,6 +78,7 @@ impl_wrapping_ops!(u32);
 impl_wrapping_ops!(u64);
 
 pub type BufferIndex = u16;
+pub type QueueCluster = u8;
 
 /// Transient backing data that is the backbone of the trait object.
 pub struct RingBufferTransient<ItemKey, Item, B, M, N>
