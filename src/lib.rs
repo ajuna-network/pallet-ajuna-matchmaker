@@ -160,55 +160,6 @@ pub mod pallet {
 				},
 			}
 		}
-
-		/// Add an item to the queue
-		//#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		//pub fn add_to_queue(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
-		//	// only a user can push into the queue
-		//	let _user = ensure_root(origin)?;
-		//	let mut queue = Self::queue_transient();
-		//	let player = PlayerStruct{ account };
-		//	queue.push(player.account.clone(), player.clone());
-		//	Self::deposit_event(Event::Queued(player));	
-		//	Ok(())
-		//}
-
-		/// Add several items to the queue
-		//#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		//pub fn add_multiple(origin: OriginFor<T>, rankings: Vec<i32>, boolean: bool) -> DispatchResult {
-		//	// only a user can push into the queue
-		//	let _user = ensure_signed(origin)?;
-		//
-		//	let mut queue = Self::queue_transient();
-		//	for ranking in rankings {
-		//		queue.push(PlayerStruct{ ranking, boolean });
-		//	}
-		//
-		//	Ok(())
-		//}
-		
-		/// Remove and return an item from the queue
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn pop_from_queue(origin: OriginFor<T>) -> DispatchResult {
-			// only a user can pop from the queue
-			let _user = ensure_root(origin)?;		
-
-			let mut queue = Self::queue_transient();
-			if let Some(player_struct) = queue.pop() {
-				Self::deposit_event(Event::Popped(player_struct));	
-			}
-		
-			Ok(())	
-		}
-
-		// /// Remove and return an item from the queue
-		//#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		//pub fn try_match(origin: OriginFor<T>) -> DispatchResult {
-		//	// only a user can pop from the queue
-		//	let _sender = ensure_root(origin)?;		
-		//	let result = Self::do_try_match();
-		//	Ok(())	
-		//}
 	}
 }
 
@@ -229,12 +180,12 @@ impl<T: Config> Pallet<T> {
 	}
 	
 	fn do_add_queue(account: T::AccountId) -> bool {
-		let queue_cluster:u8 = 0;
+		let bracket:u8 = 0;
 		let mut queue = Self::queue_transient();
 
 		let player = PlayerStruct{ account };
 		// duplicate check if we can add key to the queue
-		if !queue.push(player.account.clone(), player.clone()) {
+		if !queue.push(bracket, player.account.clone(), player.clone()) {
 			return false
 		}
 
@@ -243,30 +194,30 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn do_empty_queue() {
-
+		let bracket: QueueCluster = 0;
 		let mut queue = Self::queue_transient();
 
-		while queue.size() > 0 {
-			queue.pop();
+		while queue.size(bracket) > 0 {
+			queue.pop(bracket);
 		}
 	}
 
 	fn do_try_match() -> Option<[T::AccountId; 2]> {
-		
+		let bracket: QueueCluster = 0;
 		let mut queue = Self::queue_transient();
 
-		if queue.size() < 2 {
+		if queue.size(bracket) < 2 {
 			return None;
 		}
 
 		let mut accounts: [T::AccountId; 2] = Default::default();
 
-		if let Some(player1) = queue.pop() {
+		if let Some(player1) = queue.pop(bracket) {
 			accounts[0] = player1.account.clone();
 			Self::deposit_event(Event::Popped(player1));	
 		}
 
-		if let Some(player2) = queue.pop() {
+		if let Some(player2) = queue.pop(bracket) {
 			accounts[1] = player2.account.clone();
 			Self::deposit_event(Event::Popped(player2));	
 		}
@@ -280,8 +231,8 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn do_queue_size() -> BufferIndex {
-
-		Self::queue_transient().size()
+		let bracket: QueueCluster = 0;
+		Self::queue_transient().size(bracket)
 	}
 }
 

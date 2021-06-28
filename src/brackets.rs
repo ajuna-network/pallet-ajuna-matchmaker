@@ -43,15 +43,15 @@ where
 	/// Implementation note: Call in `drop` to increase ergonomics.
 	fn commit(&self);
 	/// Push an item onto the end of the queue.
-	fn push(&mut self, j: ItemKey, i: Item) -> bool;
+	fn push(&mut self, b: QueueCluster, j: ItemKey, i: Item) -> bool;
 	/// Pop an item from the start of the queue.
 	///
 	/// Returns `None` if the queue is empty.
-	fn pop(&mut self) -> Option<Item>;
+	fn pop(&mut self, b: QueueCluster) -> Option<Item>;
 	/// Return whether the queue is empty.
-	fn is_empty(&self) -> bool;
+	fn is_empty(&self, b: QueueCluster) -> bool;
     /// Return the size of the brackets queue.
-    fn size(&self) -> BufferIndex;
+    fn size(&self, b: QueueCluster) -> BufferIndex;
 	/// Return whether the item_key is queued or not.
 	fn is_queued(&self, j: ItemKey) -> bool;
 }
@@ -167,19 +167,18 @@ where
 	/// Push an item onto the end of the queue.
 	///
 	/// Will insert the new item, but will not update the bounds in storage.
-	fn push(&mut self, item_key: ItemKey, item: Item) -> bool {
+	fn push(&mut self, bracket: QueueCluster, item_key: ItemKey, item: Item) -> bool {
 		
-		let queue_cluster:u8 = 0;
-		let (mut v_start, mut v_end) = self.index_vector[queue_cluster as usize];
+		let (mut v_start, mut v_end) = self.index_vector[bracket as usize];
 
 		// check if there is already such a key queued
-		if N::contains_key(queue_cluster, &item_key) {
+		if N::contains_key(bracket, &item_key) {
 			return false
 		}
 
 		// insert the item key and the item
-		N::insert(queue_cluster, &item_key, item);
-		M::insert(queue_cluster, v_end, item_key);
+		N::insert(bracket, &item_key, item);
+		M::insert(bracket, v_end, item_key);
 
 		// this will intentionally overflow and wrap around when bonds_end
 		// reaches `Index::max_value` because we want a brackets.
@@ -191,42 +190,41 @@ where
 		}
 		v_end = next_index;
 
-		self.index_vector[queue_cluster as usize] = (v_start, v_end);
+		self.index_vector[bracket as usize] = (v_start, v_end);
 		true
 	}
 
 	/// Pop an item from the start of the queue.
 	///
 	/// Will remove the item, but will not update the bounds in storage.
-	fn pop(&mut self) -> Option<Item> {
-		if self.is_empty() {
+	fn pop(&mut self, bracket: QueueCluster) -> Option<Item> {
+
+		if self.is_empty(bracket) {
 			return None;
 		}
-		let queue_cluster:u8 = 0;
 
-		let (mut v_start, v_end) = self.index_vector[queue_cluster as usize];
+		let (mut v_start, v_end) = self.index_vector[bracket as usize];
 
-		let item_key = M::take(queue_cluster, v_start);
-		let item = N::take(queue_cluster, item_key);
+		let item_key = M::take(bracket, v_start);
+		let item = N::take(bracket, item_key);
 
 		v_start = v_start.wrapping_add(1 as u16);
 
-		self.index_vector[queue_cluster as usize] = (v_start, v_end);
+		self.index_vector[bracket as usize] = (v_start, v_end);
 
 		item.into()
 	}
 
 	/// Return whether to consider the queue empty.
-	fn is_empty(&self) -> bool {
-		let queue_cluster:u8 = 0;
+	fn is_empty(&self, bracket: QueueCluster) -> bool {
 
-		let (v_start, v_end) = self.index_vector[queue_cluster as usize];
+		let (v_start, v_end) = self.index_vector[bracket as usize];
 		
 		v_start == v_end
 	}
 
     /// Return the current size of the ring buffer as a BufferIndex.
-    fn size(&self) -> BufferIndex {
+    fn size(&self, bracket: QueueCluster) -> BufferIndex {
 		let queue_cluster:u8 = 0;
 
 		let (v_start, v_end) = self.index_vector[queue_cluster as usize];
@@ -240,8 +238,15 @@ where
 
 	/// Return whether the item_key is queued or not.
 	fn is_queued(&self, item_key: ItemKey) -> bool {
-		let queue_cluster:u8 = 0;
-		N::contains_key(queue_cluster, &item_key)
+
+		// check all brackets if key is queued
+		for i in 0..self.index_vector.len() {
+			if N::contains_key(i as QueueCluster, &item_key) {
+				return true
+			}
+		}
+
+		false
 	}
 }
 
@@ -367,9 +372,11 @@ mod tests {
 	#[test]
 	fn simple_push() {
 		new_test_ext().execute_with(|| {
+			let bracket: QueueCluster = 0;
 			let mut ring: Box<Brackets> = Box::new(Transient::new());
+
 			let some_struct = SomeStruct { foo: 1, bar: 2 };
-			ring.push(some_struct.foo.clone(), some_struct);
+			ring.push(bracket, some_struct.foo.clone(), some_struct);
 			ring.commit();
 			let start_end = TestModule::get_test_range(0);
 			assert_eq!(start_end, (0, 1));
@@ -382,12 +389,13 @@ mod tests {
 	#[test]
 	fn size_tests() {
 		new_test_ext().execute_with(|| {
+			let bracket: QueueCluster = 0;
 			let mut ring: Box<Brackets> = Box::new(Transient::new());
 
-			assert_eq!(0, ring.size());
+			assert_eq!(0, ring.size(bracket));
 
 			let some_struct = SomeStruct { foo: 1, bar: 2 };
-			ring.push(some_struct.foo.clone(), some_struct);
+			ring.push(bracket,some_struct.foo.clone(), some_struct);
 			ring.commit();
 
 			let start_end = TestModule::get_test_range(0);
@@ -395,12 +403,12 @@ mod tests {
 			let some_key = TestModule::get_test_value(0, 0);
 			let some_struct =  TestModule::get_test_list(0, some_key);
 			assert_eq!(some_struct, SomeStruct { foo: 1, bar: 2 });
-            assert_eq!(1, ring.size());
+            assert_eq!(1, ring.size(bracket));
 
 			let some_struct = SomeStruct { foo: 2, bar: 2 };
-			ring.push(some_struct.foo.clone(), some_struct);
+			ring.push(bracket,some_struct.foo.clone(), some_struct);
 			ring.commit();
-            assert_eq!(2, ring.size());
+            assert_eq!(2, ring.size(bracket));
 
 		})
 	}
@@ -408,10 +416,12 @@ mod tests {
 	#[test]
 	fn drop_does_commit() {
 		new_test_ext().execute_with(|| {
+			// test drop here
 			{
+				let bracket: QueueCluster = 0;
 				let mut ring: Box<Brackets> = Box::new(Transient::new());
 				let some_struct = SomeStruct { foo: 1, bar: 2 };
-				ring.push(some_struct.foo.clone(), some_struct);
+				ring.push(bracket,some_struct.foo.clone(), some_struct);
 			}
 			let start_end = TestModule::get_test_range(0);
 			assert_eq!(start_end, (0, 1));
@@ -424,11 +434,12 @@ mod tests {
 	#[test]
 	fn simple_pop() {
 		new_test_ext().execute_with(|| {
+			let bracket: QueueCluster = 0;
 			let mut ring: Box<Brackets> = Box::new(Transient::new());
 			let some_struct = SomeStruct { foo: 1, bar: 2 };
-			ring.push(some_struct.foo.clone(), some_struct);
+			ring.push(bracket,some_struct.foo.clone(), some_struct);
 
-			let item = ring.pop();
+			let item = ring.pop(bracket);
 			ring.commit();
 			assert!(item.is_some());
 			let start_end = TestModule::get_test_range(0);
@@ -439,34 +450,35 @@ mod tests {
 	#[test]
 	fn duplicate_check() {
 		new_test_ext().execute_with(|| {
-			
+			let bracket: QueueCluster = 0;
 			let mut ring: Box<Brackets> = Box::new(Transient::new());
 
 			let some_struct = SomeStruct { foo: 1, bar: 2 };
-			ring.push(some_struct.foo.clone(), some_struct);
+			ring.push(bracket,some_struct.foo.clone(), some_struct);
 
-			assert_eq!(1, ring.size());
+			assert_eq!(1, ring.size(bracket));
 
 			assert_eq!(true, ring.is_queued(1));
 
 			let some_struct = SomeStruct { foo: 1, bar: 2 };
-			ring.push(some_struct.foo.clone(), some_struct);
+			ring.push(bracket,some_struct.foo.clone(), some_struct);
 			
 			// no change as its a duplicate
-			assert_eq!(1, ring.size());
+			assert_eq!(1, ring.size(bracket));
 
 			assert_eq!(false, ring.is_queued(2));
 
 			let some_struct = SomeStruct { foo: 2, bar: 2 };
-			ring.push(some_struct.foo.clone(), some_struct);
+			ring.push(bracket,some_struct.foo.clone(), some_struct);
 
-			assert_eq!(2, ring.size());
+			assert_eq!(2, ring.size(bracket));
 		})
 	}
 
 	#[test]
 	fn overflow_wrap_around() {
 		new_test_ext().execute_with(|| {
+			let bracket: QueueCluster = 0;
 			let mut ring: Box<Brackets> = Box::new(Transient::new());
 
 			let mut key:u64 = 0;
@@ -474,7 +486,7 @@ mod tests {
 			for i in 1..(TestIdx::max_value() as u64) + 2 {
 				let some_struct = SomeStruct { foo: key, bar: i };
 				key = key + 1;
-				assert_eq!(true, ring.push(some_struct.foo.clone(), some_struct));
+				assert_eq!(true, ring.push(bracket,some_struct.foo.clone(), some_struct));
 			}
 			ring.commit();
 			let start_end = TestModule::get_test_range(0);
@@ -484,7 +496,7 @@ mod tests {
 				"range should be inverted because the index wrapped around"
 			);
 
-			let item = ring.pop();
+			let item = ring.pop(bracket);
 			ring.commit();
 			let (start, end) = TestModule::get_test_range(0);
 			assert_eq!(start..end, 2..0);
@@ -494,7 +506,7 @@ mod tests {
 				"the struct for field `bar = 2`, was placed at index 1"
 			);
 
-			let item = ring.pop();
+			let item = ring.pop(bracket);
 			ring.commit();
 			let (start, end) = TestModule::get_test_range(0);
 			assert_eq!(start..end, 3..0);
@@ -507,7 +519,7 @@ mod tests {
 			for i in 1..4 {
 				let some_struct = SomeStruct { foo: key, bar: i };
 				key = key + 1;
-				assert_eq!(true, ring.push(some_struct.foo.clone(), some_struct));
+				assert_eq!(true, ring.push(bracket,some_struct.foo.clone(), some_struct));
 			}
 			ring.commit();
 			let start_end = TestModule::get_test_range(0);
