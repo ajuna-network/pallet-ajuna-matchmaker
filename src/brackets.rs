@@ -14,8 +14,8 @@
 //! // Implementation that we will instantiate.
 //! type Transient = BracketsTransient<
 //!     SomeStruct,
-//!     <TestModule as Store>::TestRange,
-//!     <TestModule as Store>::TestMap,
+//!     <TestModule as Store>::TestBracketIndices,
+//!     <TestModule as Store>::TestBracketIndexKeyMap,
 //! >;
 //! {
 //!     let mut ring: Box<Brackets> = Box::new(Transient::new());
@@ -85,22 +85,24 @@ pub type BufferIndexVector = Vec<(BufferIndex, BufferIndex)>;
 pub type QueueCluster = u8;
 
 /// Transient backing data that is the backbone of the trait object.
-pub struct BracketsTransient<ItemKey, Item, B, M, N>
+pub struct BracketsTransient<ItemKey, Item, C, B, M, N>
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
+	C: StorageValue<QueueCluster, Query = QueueCluster>,
 	B: StorageMap<QueueCluster, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
 	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
 {
 	index_vector: BufferIndexVector,
-	_phantom: PhantomData<(ItemKey, Item, B, M, N)>,
+	_phantom: PhantomData<(ItemKey, Item, C, B, M, N)>,
 }
 
-impl<ItemKey, Item, B, M, N> BracketsTransient<ItemKey, Item, B, M, N>
+impl<ItemKey, Item, C, B, M, N> BracketsTransient<ItemKey, Item, C, B, M, N>
 where
-ItemKey: Codec + EncodeLike,
-Item: Codec + EncodeLike,
+	ItemKey: Codec + EncodeLike,
+	Item: Codec + EncodeLike,
+	C: StorageValue<QueueCluster, Query = QueueCluster>,
 	B: StorageMap<QueueCluster, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
 	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
@@ -108,7 +110,7 @@ Item: Codec + EncodeLike,
 	/// Create a new `BracketsTransient` that backs the brackets implementation.
 	///
 	/// Initializes itself from the bounds storage `B`.
-	pub fn new() -> BracketsTransient<ItemKey, Item, B, M, N> {
+	pub fn new() -> BracketsTransient<ItemKey, Item, C, B, M, N> {
 		let queue_cluster:u8 = 0;
 		let (start, end) = B::get(queue_cluster);
 		let mut index_vector = Vec::new();
@@ -120,10 +122,11 @@ Item: Codec + EncodeLike,
 	}
 }
 
-impl<ItemKey, Item, B, M, N> Drop for BracketsTransient<ItemKey, Item, B, M, N>
+impl<ItemKey, Item, C, B, M, N> Drop for BracketsTransient<ItemKey, Item, C, B, M, N>
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
+	C: StorageValue<QueueCluster, Query = QueueCluster>,
 	B: StorageMap<QueueCluster, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
 	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
@@ -135,10 +138,11 @@ where
 }
 
 /// Brackets implementation based on `BracketsTransient`
-impl<ItemKey, Item, B, M, N> BracketsTrait<ItemKey, Item> for BracketsTransient<ItemKey, Item, B, M, N>
+impl<ItemKey, Item, C, B, M, N> BracketsTrait<ItemKey, Item> for BracketsTransient<ItemKey, Item, C, B, M, N>
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
+	C: StorageValue<QueueCluster, Query = QueueCluster>,
 	B: StorageMap<QueueCluster, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
 	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
 	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
@@ -275,9 +279,10 @@ mod tests {
 
 	decl_storage! {
 		trait Store for Module<T: Config> as BracketsTest {
-			TestMap get(fn get_test_value): double_map hasher(twox_64_concat) QueueCluster, hasher(twox_64_concat) TestIdx => SomeKey;
-			TestList get(fn get_test_list): double_map hasher(twox_64_concat) QueueCluster, hasher(twox_64_concat) SomeKey => SomeStruct;
-			TestRange get(fn get_test_range): map hasher(twox_64_concat) QueueCluster => (TestIdx, TestIdx);
+			TestBracketsCount get(fn get_test_brackets): QueueCluster; // C
+			TestBracketIndices get(fn get_test_range): map hasher(twox_64_concat) QueueCluster => (TestIdx, TestIdx); // B
+			TestBracketIndexKeyMap get(fn get_test_value): double_map hasher(twox_64_concat) QueueCluster, hasher(twox_64_concat) TestIdx => SomeKey; // M
+			TestBracketKeyValueMap get(fn get_test_list): double_map hasher(twox_64_concat) QueueCluster, hasher(twox_64_concat) SomeKey => SomeStruct; // N
 		}
 	}
 
@@ -345,9 +350,10 @@ mod tests {
 	type Transient = BracketsTransient<
 		SomeKey,
 		SomeStruct,
-		<TestModule as Store>::TestRange,
-		<TestModule as Store>::TestMap,
-		<TestModule as Store>::TestList,
+		<TestModule as Store>::TestBracketsCount,
+		<TestModule as Store>::TestBracketIndices,
+		<TestModule as Store>::TestBracketIndexKeyMap,
+		<TestModule as Store>::TestBracketKeyValueMap,
 	>;
 
 	#[test]

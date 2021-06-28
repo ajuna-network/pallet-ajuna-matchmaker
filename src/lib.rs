@@ -57,20 +57,26 @@ pub mod pallet {
 	// https://substrate.dev/docs/en/knowledgebase/runtime/storage#declaring-storage-items
 	pub type Something<T> = StorageValue<_, u32>;
 
+	#[pallet::type_value]
+	pub fn BracketsCountDefault<T: Config>() -> u8 { 1 }
 	#[pallet::storage]
-	#[pallet::getter(fn get_value)]
-	pub type BufferMap<T: Config> = StorageDoubleMap<_, Twox64Concat, QueueCluster, Twox64Concat, BufferIndex, T::AccountId, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_list)]
-	pub type BufferList<T: Config> = StorageDoubleMap<_, Twox64Concat, QueueCluster, Twox64Concat, T::AccountId, PlayerStruct<T::AccountId>, ValueQuery>;
+	#[pallet::getter(fn brackets_count)]
+	pub type BracketsCount<T> = StorageValue<_, u8, ValueQuery, BracketsCountDefault<T>>;
 
 	// Default value for Nonce
 	#[pallet::type_value]
-	pub fn BufferRangeDefault<T: Config>() -> (BufferIndex, BufferIndex) { (0, 0) }
+	pub fn BracketIndicesDefault<T: Config>() -> (BufferIndex, BufferIndex) { (0, 0) }
 	#[pallet::storage]
 	#[pallet::getter(fn range)]
-	pub type BufferRange<T: Config> = StorageMap<_, Twox64Concat, QueueCluster, (BufferIndex, BufferIndex), ValueQuery, BufferRangeDefault<T>>;
+	pub type BracketIndices<T: Config> = StorageMap<_, Twox64Concat, QueueCluster, (BufferIndex, BufferIndex), ValueQuery, BracketIndicesDefault<T>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_value)]
+	pub type BracketIndexKeyMap<T: Config> = StorageDoubleMap<_, Twox64Concat, QueueCluster, Twox64Concat, BufferIndex, T::AccountId, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_list)]
+	pub type BracketKeyValueMap<T: Config> = StorageDoubleMap<_, Twox64Concat, QueueCluster, Twox64Concat, T::AccountId, PlayerStruct<T::AccountId>, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -215,9 +221,10 @@ impl<T: Config> Pallet<T> {
 		Box::new(BracketsTransient::<
 			T::AccountId,
 			PlayerStruct<T::AccountId>,
-			<Self as Store>::BufferRange,
-			<Self as Store>::BufferMap,
-			<Self as Store>::BufferList,
+			<Self as Store>::BracketsCount,
+			<Self as Store>::BracketIndices,
+			<Self as Store>::BracketIndexKeyMap,
+			<Self as Store>::BracketKeyValueMap,
 		>::new())
 	}
 	
