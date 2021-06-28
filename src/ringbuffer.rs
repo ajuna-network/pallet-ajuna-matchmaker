@@ -109,7 +109,7 @@ Item: Codec + EncodeLike,
 	pub fn new() -> RingBufferTransient<ItemKey, Item, B, M, N> {
 		let (start, end) = B::get();
 		let mut index_vector = Vec::new();
-		index_vector.push((start.clone(), end.clone()));
+		index_vector.push((start, end));
 		RingBufferTransient {
 			index_vector,
 			_phantom: PhantomData,
