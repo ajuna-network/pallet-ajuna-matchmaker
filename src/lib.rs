@@ -20,9 +20,9 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-mod ringbuffer;
+mod brackets;
 
-use ringbuffer::{RingBufferTrait, RingBufferTransient, BufferIndex, QueueCluster};
+use brackets::{BracketsTrait, BracketsTransient, BufferIndex, QueueCluster};
 
 #[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Debug))]
@@ -211,8 +211,8 @@ impl<T: Config> Pallet<T> {
 	///
 	/// Constructs a ringbuffer transient and returns it as a boxed trait object.
 	/// See [this part of the Rust book](https://doc.rust-lang.org/book/ch17-02-trait-objects.html#trait-objects-perform-dynamic-dispatch)
-	fn queue_transient() -> Box<dyn RingBufferTrait<T::AccountId,PlayerStruct<T::AccountId>>> {
-		Box::new(RingBufferTransient::<
+	fn queue_transient() -> Box<dyn BracketsTrait<T::AccountId,PlayerStruct<T::AccountId>>> {
+		Box::new(BracketsTransient::<
 			T::AccountId,
 			PlayerStruct<T::AccountId>,
 			<Self as Store>::BufferRange,

@@ -1,22 +1,24 @@
-//! # Transient RingBuffer implementation
+//! # Matchmaker Brackets (based on Transient RingBuffer implementation)
 //!
-//! This pallet provides a trait and implementation for a ringbuffer that
-//! abstracts over storage items and presents them as a FIFO queue.
+//! This pallet provides a trait and implementation for a brackets ranked system that
+//! abstracts over storage items and presents them as multiple brackets, with each
+//! having a FIFO queue. This allows an implementation of a matchmaker over different
+//! ranking brackets.
 //!
 //! Usage Example:
 //! ```rust, ignore
-//! use ringbuffer::{RingBufferTrait, RingBufferTransient};
+//! use bracketqueues::{BracketsTrait, BracketsTransient};
 //!
 //! // Trait object that we will be interacting with.
-//! type RingBuffer = dyn RingBufferTrait<SomeStruct>;
+//! type Brackets = dyn BracketsTrait<SomeStruct>;
 //! // Implementation that we will instantiate.
-//! type Transient = RingBufferTransient<
+//! type Transient = BracketsTransient<
 //!     SomeStruct,
 //!     <TestModule as Store>::TestRange,
 //!     <TestModule as Store>::TestMap,
 //! >;
 //! {
-//!     let mut ring: Box<RingBuffer> = Box::new(Transient::new());
+//!     let mut ring: Box<Brackets> = Box::new(Transient::new());
 //!     ring.push(SomeStruct { foo: 1, bar: 2 });
 //! } // `ring.commit()` will be called on `drop` here and syncs to storage
 //! ```
@@ -28,8 +30,8 @@ use core::marker::PhantomData;
 use frame_support::storage::{StorageDoubleMap, StorageMap, StorageValue};
 use sp_std::vec::{Vec};
 
-/// Trait object presenting the ringbuffer interface.
-pub trait RingBufferTrait<ItemKey, Item>
+/// Trait object presenting the brackets interface.
+pub trait BracketsTrait<ItemKey, Item>
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
@@ -48,7 +50,7 @@ where
 	fn pop(&mut self) -> Option<Item>;
 	/// Return whether the queue is empty.
 	fn is_empty(&self) -> bool;
-    /// Return the size of the ringbuffer queue.
+    /// Return the size of the brackets queue.
     fn size(&self) -> BufferIndex;
 	/// Return whether the item_key is queued or not.
 	fn is_queued(&self, j: ItemKey) -> bool;
@@ -83,7 +85,7 @@ pub type BufferIndexVector = Vec<(BufferIndex, BufferIndex)>;
 pub type QueueCluster = u8;
 
 /// Transient backing data that is the backbone of the trait object.
-pub struct RingBufferTransient<ItemKey, Item, B, M, N>
+pub struct BracketsTransient<ItemKey, Item, B, M, N>
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
@@ -95,7 +97,7 @@ where
 	_phantom: PhantomData<(ItemKey, Item, B, M, N)>,
 }
 
-impl<ItemKey, Item, B, M, N> RingBufferTransient<ItemKey, Item, B, M, N>
+impl<ItemKey, Item, B, M, N> BracketsTransient<ItemKey, Item, B, M, N>
 where
 ItemKey: Codec + EncodeLike,
 Item: Codec + EncodeLike,
@@ -103,21 +105,21 @@ Item: Codec + EncodeLike,
 	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
 	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
 {
-	/// Create a new `RingBufferTransient` that backs the ringbuffer implementation.
+	/// Create a new `BracketsTransient` that backs the brackets implementation.
 	///
 	/// Initializes itself from the bounds storage `B`.
-	pub fn new() -> RingBufferTransient<ItemKey, Item, B, M, N> {
+	pub fn new() -> BracketsTransient<ItemKey, Item, B, M, N> {
 		let (start, end) = B::get();
 		let mut index_vector = Vec::new();
 		index_vector.push((start, end));
-		RingBufferTransient {
+		BracketsTransient {
 			index_vector,
 			_phantom: PhantomData,
 		}
 	}
 }
 
-impl<ItemKey, Item, B, M, N> Drop for RingBufferTransient<ItemKey, Item, B, M, N>
+impl<ItemKey, Item, B, M, N> Drop for BracketsTransient<ItemKey, Item, B, M, N>
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
@@ -127,12 +129,12 @@ where
 {
 	/// Commit on `drop`.
 	fn drop(&mut self) {
-		<Self as RingBufferTrait<ItemKey, Item>>::commit(self);
+		<Self as BracketsTrait<ItemKey, Item>>::commit(self);
 	}
 }
 
-/// Ringbuffer implementation based on `RingBufferTransient`
-impl<ItemKey, Item, B, M, N> RingBufferTrait<ItemKey, Item> for RingBufferTransient<ItemKey, Item, B, M, N>
+/// Brackets implementation based on `BracketsTransient`
+impl<ItemKey, Item, B, M, N> BracketsTrait<ItemKey, Item> for BracketsTransient<ItemKey, Item, B, M, N>
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
@@ -167,11 +169,11 @@ where
 		M::insert(queue_cluster, v_end, item_key);
 
 		// this will intentionally overflow and wrap around when bonds_end
-		// reaches `Index::max_value` because we want a ringbuffer.
+		// reaches `Index::max_value` because we want a brackets.
 		let next_index = v_end.wrapping_add(1 as u16);
 		if next_index == v_start {
 			// queue presents as empty but is not
-			// --> overwrite the oldest item in the FIFO ringbuffer
+			// --> overwrite the oldest item in the FIFO brackets
 			v_start = v_start.wrapping_add(1 as u16);
 		}
 		v_end = next_index;
@@ -233,7 +235,7 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use RingBufferTrait;
+	use BracketsTrait;
 
 	use codec::{Decode, Encode};
 	use frame_support::{decl_module, decl_storage, impl_outer_origin, parameter_types};
@@ -271,7 +273,7 @@ mod tests {
 	}
 
 	decl_storage! {
-		trait Store for Module<T: Config> as RingBufferTest {
+		trait Store for Module<T: Config> as BracketsTest {
 			TestMap get(fn get_test_value): double_map hasher(twox_64_concat) QueueCluster, hasher(twox_64_concat) TestIdx => SomeKey;
 			TestList get(fn get_test_list): double_map hasher(twox_64_concat) QueueCluster, hasher(twox_64_concat) SomeKey => SomeStruct;
 			TestRange get(fn get_test_range): (TestIdx, TestIdx) = (0, 0);
@@ -334,12 +336,12 @@ mod tests {
 	}
 
 	// ------------------------------------------------------------
-	// ringbuffer
+	// brackets
 
 	// Trait object that we will be interacting with.
-	type RingBuffer = dyn RingBufferTrait<SomeKey, SomeStruct>;
+	type Brackets = dyn BracketsTrait<SomeKey, SomeStruct>;
 	// Implementation that we will instantiate.
-	type Transient = RingBufferTransient<
+	type Transient = BracketsTransient<
 		SomeKey,
 		SomeStruct,
 		<TestModule as Store>::TestRange,
@@ -350,7 +352,7 @@ mod tests {
 	#[test]
 	fn simple_push() {
 		new_test_ext().execute_with(|| {
-			let mut ring: Box<RingBuffer> = Box::new(Transient::new());
+			let mut ring: Box<Brackets> = Box::new(Transient::new());
 			let some_struct = SomeStruct { foo: 1, bar: 2 };
 			ring.push(some_struct.foo.clone(), some_struct);
 			ring.commit();
@@ -365,7 +367,7 @@ mod tests {
 	#[test]
 	fn size_tests() {
 		new_test_ext().execute_with(|| {
-			let mut ring: Box<RingBuffer> = Box::new(Transient::new());
+			let mut ring: Box<Brackets> = Box::new(Transient::new());
 
 			assert_eq!(0, ring.size());
 
@@ -392,7 +394,7 @@ mod tests {
 	fn drop_does_commit() {
 		new_test_ext().execute_with(|| {
 			{
-				let mut ring: Box<RingBuffer> = Box::new(Transient::new());
+				let mut ring: Box<Brackets> = Box::new(Transient::new());
 				let some_struct = SomeStruct { foo: 1, bar: 2 };
 				ring.push(some_struct.foo.clone(), some_struct);
 			}
@@ -407,7 +409,7 @@ mod tests {
 	#[test]
 	fn simple_pop() {
 		new_test_ext().execute_with(|| {
-			let mut ring: Box<RingBuffer> = Box::new(Transient::new());
+			let mut ring: Box<Brackets> = Box::new(Transient::new());
 			let some_struct = SomeStruct { foo: 1, bar: 2 };
 			ring.push(some_struct.foo.clone(), some_struct);
 
@@ -423,7 +425,7 @@ mod tests {
 	fn duplicate_check() {
 		new_test_ext().execute_with(|| {
 			
-			let mut ring: Box<RingBuffer> = Box::new(Transient::new());
+			let mut ring: Box<Brackets> = Box::new(Transient::new());
 
 			let some_struct = SomeStruct { foo: 1, bar: 2 };
 			ring.push(some_struct.foo.clone(), some_struct);
@@ -450,7 +452,7 @@ mod tests {
 	#[test]
 	fn overflow_wrap_around() {
 		new_test_ext().execute_with(|| {
-			let mut ring: Box<RingBuffer> = Box::new(Transient::new());
+			let mut ring: Box<Brackets> = Box::new(Transient::new());
 
 			let mut key:u64 = 0;
 
