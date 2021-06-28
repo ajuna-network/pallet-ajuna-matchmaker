@@ -59,11 +59,11 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_value)]
-	pub type BufferMap<T: Config> = StorageMap<_, Twox64Concat, BufferIndex, PlayerStruct<T::AccountId>, ValueQuery>;
+	pub type BufferMap<T: Config> = StorageMap<_, Twox64Concat, BufferIndex, T::AccountId, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_list)]
-	pub type BufferList<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BufferIndex, ValueQuery>;
+	pub type BufferList<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, PlayerStruct<T::AccountId>, ValueQuery>;
 
 	// Default value for Nonce
 	#[pallet::type_value]
@@ -226,11 +226,12 @@ impl<T: Config> Pallet<T> {
 		let mut queue = Self::queue_transient();
 
 		let player = PlayerStruct{ account };
-		queue.push(player.account.clone(), player.clone());
+		// duplicate check if we can add key to the queue
+		if !queue.push(player.account.clone(), player.clone()) {
+			return false
+		}
 
 		Self::deposit_event(Event::Queued(player));	
-
-		// do duplicate check for false later
 		true
 	}
 
