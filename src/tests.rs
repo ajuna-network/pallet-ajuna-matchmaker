@@ -50,8 +50,8 @@ fn test_add_queue() {
 }
 
 #[test]
-fn test_queue() {
+fn test_brackets_count() {
 	new_test_ext().execute_with(|| {
-
+		assert_eq!(MatchMaker::brackets_count(), 1);
 	});
 }

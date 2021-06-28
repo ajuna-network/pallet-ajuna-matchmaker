@@ -111,10 +111,17 @@ where
 	///
 	/// Initializes itself from the bounds storage `B`.
 	pub fn new() -> BracketsTransient<ItemKey, Item, C, B, M, N> {
-		let queue_cluster:u8 = 0;
-		let (start, end) = B::get(queue_cluster);
+
+		// get brackets count
+		let brackets_count = C::get();
+
+		// initialize all brackets
 		let mut index_vector = Vec::new();
-		index_vector.push((start, end));
+		for i in 0..1u8 {
+			let (start, end) = B::get(i);
+			index_vector.push((start, end));
+		}
+
 		BracketsTransient {
 			index_vector,
 			_phantom: PhantomData,
