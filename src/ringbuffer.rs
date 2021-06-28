@@ -25,7 +25,8 @@
 //! types and just returns the boxed trait object.
 use codec::{Codec, EncodeLike};
 use core::marker::PhantomData;
-use frame_support::storage::{StorageMap, StorageValue};
+use frame_support::storage::{StorageDoubleMap, StorageMap, StorageValue};
+use sp_std::vec::{Vec};
 
 /// Trait object presenting the ringbuffer interface.
 pub trait RingBufferTrait<ItemKey, Item>
@@ -78,6 +79,7 @@ impl_wrapping_ops!(u32);
 impl_wrapping_ops!(u64);
 
 pub type BufferIndex = u16;
+pub type BufferIndexVector = Vec<(BufferIndex, BufferIndex)>;
 pub type QueueCluster = u8;
 
 /// Transient backing data that is the backbone of the trait object.
@@ -86,11 +88,10 @@ where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageMap<BufferIndex, ItemKey, Query = ItemKey>,
-	N: StorageMap<ItemKey, Item, Query = Item>,
+	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
+	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
 {
-	start: BufferIndex,
-	end: BufferIndex,
+	index_vector: BufferIndexVector,
 	_phantom: PhantomData<(ItemKey, Item, B, M, N)>,
 }
 
@@ -99,17 +100,18 @@ where
 ItemKey: Codec + EncodeLike,
 Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageMap<BufferIndex, ItemKey, Query = ItemKey>,
-	N: StorageMap<ItemKey, Item, Query = Item>,
+	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
+	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
 {
 	/// Create a new `RingBufferTransient` that backs the ringbuffer implementation.
 	///
 	/// Initializes itself from the bounds storage `B`.
 	pub fn new() -> RingBufferTransient<ItemKey, Item, B, M, N> {
 		let (start, end) = B::get();
+		let mut index_vector = Vec::new();
+		index_vector.push((start.clone(), end.clone()));
 		RingBufferTransient {
-			start,
-			end,
+			index_vector,
 			_phantom: PhantomData,
 		}
 	}
@@ -120,8 +122,8 @@ where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageMap<BufferIndex, ItemKey, Query = ItemKey>,
-	N: StorageMap<ItemKey, Item, Query = Item>,
+	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
+	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
 {
 	/// Commit on `drop`.
 	fn drop(&mut self) {
@@ -135,12 +137,16 @@ where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
 	B: StorageValue<(BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageMap<BufferIndex, ItemKey, Query = ItemKey>,
-	N: StorageMap<ItemKey, Item, Query = Item>,
+	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
+	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
 {
 	/// Commit the (potentially) changed bounds to storage.
 	fn commit(&self) {
-		B::put((self.start, self.end));
+
+		let queue_cluster:u8 = 0;
+		let (v_start, v_end) = self.index_vector[queue_cluster as usize];
+
+		B::put((v_start, v_end));
 	}
 
 	/// Push an item onto the end of the queue.
@@ -148,25 +154,29 @@ where
 	/// Will insert the new item, but will not update the bounds in storage.
 	fn push(&mut self, item_key: ItemKey, item: Item) -> bool {
 		
+		let queue_cluster:u8 = 0;
+		let (mut v_start, mut v_end) = self.index_vector[queue_cluster as usize];
+
 		// check if there is already such a key queued
-		if N::contains_key(&item_key) {
+		if N::contains_key(queue_cluster, &item_key) {
 			return false
 		}
 
 		// insert the item key and the item
-		N::insert(&item_key, item);
-		M::insert(self.end, item_key);
+		N::insert(queue_cluster, &item_key, item);
+		M::insert(queue_cluster, v_end, item_key);
 
 		// this will intentionally overflow and wrap around when bonds_end
 		// reaches `Index::max_value` because we want a ringbuffer.
-		let next_index = self.end.wrapping_add(1 as u16);
-		if next_index == self.start {
+		let next_index = v_end.wrapping_add(1 as u16);
+		if next_index == v_start {
 			// queue presents as empty but is not
 			// --> overwrite the oldest item in the FIFO ringbuffer
-			self.start = self.start.wrapping_add(1 as u16);
+			v_start = v_start.wrapping_add(1 as u16);
 		}
-		self.end = next_index;
+		v_end = next_index;
 
+		self.index_vector[queue_cluster as usize] = (v_start, v_end);
 		true
 	}
 
@@ -177,32 +187,46 @@ where
 		if self.is_empty() {
 			return None;
 		}
-		let item_key = M::take(self.start);
-		let item = N::take(item_key);
+		let queue_cluster:u8 = 0;
 
-		self.start = self.start.wrapping_add(1 as u16);
+		let (mut v_start, v_end) = self.index_vector[queue_cluster as usize];
+
+		let item_key = M::take(queue_cluster, v_start);
+		let item = N::take(queue_cluster, item_key);
+
+		v_start = v_start.wrapping_add(1 as u16);
+
+		self.index_vector[queue_cluster as usize] = (v_start, v_end);
 
 		item.into()
 	}
 
 	/// Return whether to consider the queue empty.
 	fn is_empty(&self) -> bool {
-		self.start == self.end
+		let queue_cluster:u8 = 0;
+
+		let (v_start, v_end) = self.index_vector[queue_cluster as usize];
+		
+		v_start == v_end
 	}
 
     /// Return the current size of the ring buffer as a BufferIndex.
     fn size(&self) -> BufferIndex {
-		
-        if self.start <= self.end {
-            return self.end - self.start
+		let queue_cluster:u8 = 0;
+
+		let (v_start, v_end) = self.index_vector[queue_cluster as usize];
+
+        if v_start <= v_end {
+            return v_end - v_start
         } else {
-            return (BufferIndex::MAX - self.start) + self.end;
+            return (BufferIndex::MAX - v_start) + v_end;
         }
     }
 
 	/// Return whether the item_key is queued or not.
 	fn is_queued(&self, item_key: ItemKey) -> bool {
-		N::contains_key(&item_key)
+		let queue_cluster:u8 = 0;
+		N::contains_key(queue_cluster, &item_key)
 	}
 }
 
@@ -248,8 +272,8 @@ mod tests {
 
 	decl_storage! {
 		trait Store for Module<T: Config> as RingBufferTest {
-			TestMap get(fn get_test_value): map hasher(twox_64_concat) TestIdx => SomeKey;
-			TestList get(fn get_test_list): map hasher(twox_64_concat) SomeKey => SomeStruct;
+			TestMap get(fn get_test_value): double_map hasher(twox_64_concat) QueueCluster, hasher(twox_64_concat) TestIdx => SomeKey;
+			TestList get(fn get_test_list): double_map hasher(twox_64_concat) QueueCluster, hasher(twox_64_concat) SomeKey => SomeStruct;
 			TestRange get(fn get_test_range): (TestIdx, TestIdx) = (0, 0);
 		}
 	}
@@ -332,8 +356,8 @@ mod tests {
 			ring.commit();
 			let start_end = TestModule::get_test_range();
 			assert_eq!(start_end, (0, 1));
-			let some_key = TestModule::get_test_value(0);
-			let some_struct =  TestModule::get_test_list(some_key);
+			let some_key = TestModule::get_test_value(0, 0);
+			let some_struct =  TestModule::get_test_list(0, some_key);
 			assert_eq!(some_struct, SomeStruct { foo: 1, bar: 2 });
 		})
 	}
@@ -351,8 +375,8 @@ mod tests {
 
 			let start_end = TestModule::get_test_range();
 			assert_eq!(start_end, (0, 1));
-			let some_key = TestModule::get_test_value(0);
-			let some_struct =  TestModule::get_test_list(some_key);
+			let some_key = TestModule::get_test_value(0, 0);
+			let some_struct =  TestModule::get_test_list(0, some_key);
 			assert_eq!(some_struct, SomeStruct { foo: 1, bar: 2 });
             assert_eq!(1, ring.size());
 
@@ -374,8 +398,8 @@ mod tests {
 			}
 			let start_end = TestModule::get_test_range();
 			assert_eq!(start_end, (0, 1));
-			let some_key = TestModule::get_test_value(0);
-			let some_struct =  TestModule::get_test_list(some_key);
+			let some_key = TestModule::get_test_value(0, 0);
+			let some_struct =  TestModule::get_test_list(0, some_key);
 			assert_eq!(some_struct, SomeStruct { foo: 1, bar: 2 });
 		})
 	}

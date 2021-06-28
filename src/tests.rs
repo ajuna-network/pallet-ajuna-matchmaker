@@ -29,17 +29,23 @@ fn test_add_queue() {
 		let player1 = 1;
 		let player2 = 2;
 
+		assert_eq!(MatchMaker::do_queue_size(), 0);
 		assert_eq!(MatchMaker::do_try_match(), None);
 		assert_eq!(MatchMaker::do_add_queue(player1), true);
+		assert_eq!(MatchMaker::do_queue_size(), 1);
 		assert_eq!(MatchMaker::do_try_match(), None);
 		assert_eq!(MatchMaker::do_add_queue(player2), true);
+		assert_eq!(MatchMaker::do_queue_size(), 2);
 		assert_eq!(MatchMaker::do_try_match(), Some([1, 2]));
+		assert_eq!(MatchMaker::do_queue_size(), 0);
 		assert_eq!(MatchMaker::do_try_match(), None);
 
 		assert_eq!(MatchMaker::do_add_queue(player1), true);
 		assert_eq!(MatchMaker::do_add_queue(player2), true);
+		assert_eq!(MatchMaker::do_queue_size(), 2);
 		MatchMaker::do_empty_queue();
 		assert_eq!(MatchMaker::do_try_match(), None);
+		assert_eq!(MatchMaker::do_queue_size(), 0);
 	});
 }
 

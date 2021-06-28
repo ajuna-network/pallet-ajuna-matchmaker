@@ -22,7 +22,7 @@ mod benchmarking;
 
 mod ringbuffer;
 
-use ringbuffer::{RingBufferTrait, RingBufferTransient, BufferIndex};
+use ringbuffer::{RingBufferTrait, RingBufferTransient, BufferIndex, QueueCluster};
 
 #[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Debug))]
@@ -59,11 +59,11 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_value)]
-	pub type BufferMap<T: Config> = StorageMap<_, Twox64Concat, BufferIndex, T::AccountId, ValueQuery>;
+	pub type BufferMap<T: Config> = StorageDoubleMap<_, Twox64Concat, QueueCluster, Twox64Concat, BufferIndex, T::AccountId, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_list)]
-	pub type BufferList<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, PlayerStruct<T::AccountId>, ValueQuery>;
+	pub type BufferList<T: Config> = StorageDoubleMap<_, Twox64Concat, QueueCluster, Twox64Concat, T::AccountId, PlayerStruct<T::AccountId>, ValueQuery>;
 
 	// Default value for Nonce
 	#[pallet::type_value]
@@ -271,6 +271,11 @@ impl<T: Config> Pallet<T> {
 
 		Self::queue_transient().is_queued(account)
 	}
+
+	fn do_queue_size() -> BufferIndex {
+
+		Self::queue_transient().size()
+	}
 }
 
 impl<T: Config> MatchFunc<T::AccountId> for Pallet<T> {
@@ -294,6 +299,11 @@ impl<T: Config> MatchFunc<T::AccountId> for Pallet<T> {
 		
 		Self::do_is_queued(account)
 	}
+
+	fn queue_size() -> BufferIndex {
+		
+		Self::do_queue_size()
+	}
 }
 
 pub trait MatchFunc<AccountId> {
@@ -305,4 +315,6 @@ pub trait MatchFunc<AccountId> {
 	fn try_match() -> Option<[AccountId; 2]>;
 
 	fn is_queued(account: AccountId) -> bool;
+
+	fn queue_size() -> BufferIndex;
 }
