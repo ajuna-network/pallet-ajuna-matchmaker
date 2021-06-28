@@ -43,15 +43,15 @@ where
 	/// Implementation note: Call in `drop` to increase ergonomics.
 	fn commit(&self);
 	/// Push an item onto the end of the queue.
-	fn push(&mut self, b: QueueCluster, j: ItemKey, i: Item) -> bool;
+	fn push(&mut self, b: Bracket, j: ItemKey, i: Item) -> bool;
 	/// Pop an item from the start of the queue.
 	///
 	/// Returns `None` if the queue is empty.
-	fn pop(&mut self, b: QueueCluster) -> Option<Item>;
+	fn pop(&mut self, b: Bracket) -> Option<Item>;
 	/// Return whether the queue is empty.
-	fn is_empty(&self, b: QueueCluster) -> bool;
+	fn is_empty(&self, b: Bracket) -> bool;
     /// Return the size of the brackets queue.
-    fn size(&self, b: QueueCluster) -> BufferIndex;
+    fn size(&self, b: Bracket) -> BufferIndex;
 	/// Return whether the item_key is queued or not.
 	fn is_queued(&self, j: ItemKey) -> bool;
 }
@@ -82,17 +82,17 @@ impl_wrapping_ops!(u64);
 
 pub type BufferIndex = u16;
 pub type BufferIndexVector = Vec<(BufferIndex, BufferIndex)>;
-pub type QueueCluster = u8;
+pub type Bracket = u8;
 
 /// Transient backing data that is the backbone of the trait object.
 pub struct BracketsTransient<ItemKey, Item, C, B, M, N>
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
-	C: StorageValue<QueueCluster, Query = QueueCluster>,
-	B: StorageMap<QueueCluster, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
-	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
+	C: StorageValue<Bracket, Query = Bracket>,
+	B: StorageMap<Bracket, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	M: StorageDoubleMap<Bracket, BufferIndex, ItemKey, Query = ItemKey>,
+	N: StorageDoubleMap<Bracket, ItemKey, Item, Query = Item>,
 {
 	index_vector: BufferIndexVector,
 	_phantom: PhantomData<(ItemKey, Item, C, B, M, N)>,
@@ -102,10 +102,10 @@ impl<ItemKey, Item, C, B, M, N> BracketsTransient<ItemKey, Item, C, B, M, N>
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
-	C: StorageValue<QueueCluster, Query = QueueCluster>,
-	B: StorageMap<QueueCluster, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
-	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
+	C: StorageValue<Bracket, Query = Bracket>,
+	B: StorageMap<Bracket, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	M: StorageDoubleMap<Bracket, BufferIndex, ItemKey, Query = ItemKey>,
+	N: StorageDoubleMap<Bracket, ItemKey, Item, Query = Item>,
 {
 	/// Create a new `BracketsTransient` that backs the brackets implementation.
 	///
@@ -133,10 +133,10 @@ impl<ItemKey, Item, C, B, M, N> Drop for BracketsTransient<ItemKey, Item, C, B, 
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
-	C: StorageValue<QueueCluster, Query = QueueCluster>,
-	B: StorageMap<QueueCluster, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
-	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
+	C: StorageValue<Bracket, Query = Bracket>,
+	B: StorageMap<Bracket, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	M: StorageDoubleMap<Bracket, BufferIndex, ItemKey, Query = ItemKey>,
+	N: StorageDoubleMap<Bracket, ItemKey, Item, Query = Item>,
 {
 	/// Commit on `drop`.
 	fn drop(&mut self) {
@@ -149,10 +149,10 @@ impl<ItemKey, Item, C, B, M, N> BracketsTrait<ItemKey, Item> for BracketsTransie
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
-	C: StorageValue<QueueCluster, Query = QueueCluster>,
-	B: StorageMap<QueueCluster, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageDoubleMap<QueueCluster, BufferIndex, ItemKey, Query = ItemKey>,
-	N: StorageDoubleMap<QueueCluster, ItemKey, Item, Query = Item>,
+	C: StorageValue<Bracket, Query = Bracket>,
+	B: StorageMap<Bracket, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
+	M: StorageDoubleMap<Bracket, BufferIndex, ItemKey, Query = ItemKey>,
+	N: StorageDoubleMap<Bracket, ItemKey, Item, Query = Item>,
 {
 	/// Commit the (potentially) changed bounds to storage.
 	fn commit(&self) {
@@ -160,14 +160,14 @@ where
 		// commit indicies on all brackets
 		for i in 0..self.index_vector.len() {
 			let (v_start, v_end) = self.index_vector[i];
-			B::insert(i as QueueCluster, (v_start, v_end));
+			B::insert(i as Bracket, (v_start, v_end));
 		}
 	}
 
 	/// Push an item onto the end of the queue.
 	///
 	/// Will insert the new item, but will not update the bounds in storage.
-	fn push(&mut self, bracket: QueueCluster, item_key: ItemKey, item: Item) -> bool {
+	fn push(&mut self, bracket: Bracket, item_key: ItemKey, item: Item) -> bool {
 		
 		let (mut v_start, mut v_end) = self.index_vector[bracket as usize];
 
@@ -197,7 +197,7 @@ where
 	/// Pop an item from the start of the queue.
 	///
 	/// Will remove the item, but will not update the bounds in storage.
-	fn pop(&mut self, bracket: QueueCluster) -> Option<Item> {
+	fn pop(&mut self, bracket: Bracket) -> Option<Item> {
 
 		if self.is_empty(bracket) {
 			return None;
@@ -216,7 +216,7 @@ where
 	}
 
 	/// Return whether to consider the queue empty.
-	fn is_empty(&self, bracket: QueueCluster) -> bool {
+	fn is_empty(&self, bracket: Bracket) -> bool {
 
 		let (v_start, v_end) = self.index_vector[bracket as usize];
 		
@@ -224,10 +224,9 @@ where
 	}
 
     /// Return the current size of the ring buffer as a BufferIndex.
-    fn size(&self, bracket: QueueCluster) -> BufferIndex {
-		let queue_cluster:u8 = 0;
+    fn size(&self, bracket: Bracket) -> BufferIndex {
 
-		let (v_start, v_end) = self.index_vector[queue_cluster as usize];
+		let (v_start, v_end) = self.index_vector[bracket as usize];
 
         if v_start <= v_end {
             return v_end - v_start
@@ -241,7 +240,7 @@ where
 
 		// check all brackets if key is queued
 		for i in 0..self.index_vector.len() {
-			if N::contains_key(i as QueueCluster, &item_key) {
+			if N::contains_key(i as Bracket, &item_key) {
 				return true
 			}
 		}
@@ -292,10 +291,10 @@ mod tests {
 
 	decl_storage! {
 		trait Store for Module<T: Config> as BracketsTest {
-			TestBracketsCount get(fn get_test_brackets): QueueCluster = 1; // C
-			TestBracketIndices get(fn get_test_range): map hasher(twox_64_concat) QueueCluster => (TestIdx, TestIdx); // B
-			TestBracketIndexKeyMap get(fn get_test_value): double_map hasher(twox_64_concat) QueueCluster, hasher(twox_64_concat) TestIdx => SomeKey; // M
-			TestBracketKeyValueMap get(fn get_test_list): double_map hasher(twox_64_concat) QueueCluster, hasher(twox_64_concat) SomeKey => SomeStruct; // N
+			TestBracketsCount get(fn get_test_brackets): Bracket = 1; // C
+			TestBracketIndices get(fn get_test_range): map hasher(twox_64_concat) Bracket => (TestIdx, TestIdx); // B
+			TestBracketIndexKeyMap get(fn get_test_value): double_map hasher(twox_64_concat) Bracket, hasher(twox_64_concat) TestIdx => SomeKey; // M
+			TestBracketKeyValueMap get(fn get_test_list): double_map hasher(twox_64_concat) Bracket, hasher(twox_64_concat) SomeKey => SomeStruct; // N
 		}
 	}
 
@@ -372,7 +371,7 @@ mod tests {
 	#[test]
 	fn simple_push() {
 		new_test_ext().execute_with(|| {
-			let bracket: QueueCluster = 0;
+			let bracket: Bracket = 0;
 			let mut ring: Box<Brackets> = Box::new(Transient::new());
 
 			let some_struct = SomeStruct { foo: 1, bar: 2 };
@@ -389,7 +388,7 @@ mod tests {
 	#[test]
 	fn size_tests() {
 		new_test_ext().execute_with(|| {
-			let bracket: QueueCluster = 0;
+			let bracket: Bracket = 0;
 			let mut ring: Box<Brackets> = Box::new(Transient::new());
 
 			assert_eq!(0, ring.size(bracket));
@@ -418,7 +417,7 @@ mod tests {
 		new_test_ext().execute_with(|| {
 			// test drop here
 			{
-				let bracket: QueueCluster = 0;
+				let bracket: Bracket = 0;
 				let mut ring: Box<Brackets> = Box::new(Transient::new());
 				let some_struct = SomeStruct { foo: 1, bar: 2 };
 				ring.push(bracket,some_struct.foo.clone(), some_struct);
@@ -434,7 +433,7 @@ mod tests {
 	#[test]
 	fn simple_pop() {
 		new_test_ext().execute_with(|| {
-			let bracket: QueueCluster = 0;
+			let bracket: Bracket = 0;
 			let mut ring: Box<Brackets> = Box::new(Transient::new());
 			let some_struct = SomeStruct { foo: 1, bar: 2 };
 			ring.push(bracket,some_struct.foo.clone(), some_struct);
@@ -450,7 +449,7 @@ mod tests {
 	#[test]
 	fn duplicate_check() {
 		new_test_ext().execute_with(|| {
-			let bracket: QueueCluster = 0;
+			let bracket: Bracket = 0;
 			let mut ring: Box<Brackets> = Box::new(Transient::new());
 
 			let some_struct = SomeStruct { foo: 1, bar: 2 };
@@ -478,7 +477,7 @@ mod tests {
 	#[test]
 	fn overflow_wrap_around() {
 		new_test_ext().execute_with(|| {
-			let bracket: QueueCluster = 0;
+			let bracket: Bracket = 0;
 			let mut ring: Box<Brackets> = Box::new(Transient::new());
 
 			let mut key:u64 = 0;

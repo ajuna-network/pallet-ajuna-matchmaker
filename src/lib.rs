@@ -22,7 +22,7 @@ mod benchmarking;
 
 mod brackets;
 
-use brackets::{BracketsTrait, BracketsTransient, BufferIndex, QueueCluster};
+use brackets::{BracketsTrait, BracketsTransient, BufferIndex, Bracket};
 
 #[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Debug))]
@@ -68,15 +68,15 @@ pub mod pallet {
 	pub fn BracketIndicesDefault<T: Config>() -> (BufferIndex, BufferIndex) { (0, 0) }
 	#[pallet::storage]
 	#[pallet::getter(fn indices)]
-	pub type BracketIndices<T: Config> = StorageMap<_, Twox64Concat, QueueCluster, (BufferIndex, BufferIndex), ValueQuery, BracketIndicesDefault<T>>;
+	pub type BracketIndices<T: Config> = StorageMap<_, Twox64Concat, Bracket, (BufferIndex, BufferIndex), ValueQuery, BracketIndicesDefault<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn index_key)]
-	pub type BracketIndexKeyMap<T: Config> = StorageDoubleMap<_, Twox64Concat, QueueCluster, Twox64Concat, BufferIndex, T::AccountId, ValueQuery>;
+	pub type BracketIndexKeyMap<T: Config> = StorageDoubleMap<_, Twox64Concat, Bracket, Twox64Concat, BufferIndex, T::AccountId, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn key_value)]
-	pub type BracketKeyValueMap<T: Config> = StorageDoubleMap<_, Twox64Concat, QueueCluster, Twox64Concat, T::AccountId, PlayerStruct<T::AccountId>, ValueQuery>;
+	pub type BracketKeyValueMap<T: Config> = StorageDoubleMap<_, Twox64Concat, Bracket, Twox64Concat, T::AccountId, PlayerStruct<T::AccountId>, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -194,7 +194,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn do_empty_queue() {
-		let bracket: QueueCluster = 0;
+		let bracket: Bracket = 0;
 		let mut queue = Self::queue_transient();
 
 		while queue.size(bracket) > 0 {
@@ -203,7 +203,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn do_try_match() -> Option<[T::AccountId; 2]> {
-		let bracket: QueueCluster = 0;
+		let bracket: Bracket = 0;
 		let mut queue = Self::queue_transient();
 
 		if queue.size(bracket) < 2 {
@@ -231,7 +231,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn do_queue_size() -> BufferIndex {
-		let bracket: QueueCluster = 0;
+		let bracket: Bracket = 0;
 		Self::queue_transient().size(bracket)
 	}
 }
