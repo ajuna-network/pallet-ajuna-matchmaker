@@ -117,7 +117,7 @@ where
 
 		// initialize all brackets
 		let mut index_vector = Vec::new();
-		for i in 0..1u8 {
+		for i in 0..brackets_count {
 			let (start, end) = B::get(i);
 			index_vector.push((start, end));
 		}
@@ -286,7 +286,7 @@ mod tests {
 
 	decl_storage! {
 		trait Store for Module<T: Config> as BracketsTest {
-			TestBracketsCount get(fn get_test_brackets): QueueCluster; // C
+			TestBracketsCount get(fn get_test_brackets): QueueCluster = 1; // C
 			TestBracketIndices get(fn get_test_range): map hasher(twox_64_concat) QueueCluster => (TestIdx, TestIdx); // B
 			TestBracketIndexKeyMap get(fn get_test_value): double_map hasher(twox_64_concat) QueueCluster, hasher(twox_64_concat) TestIdx => SomeKey; // M
 			TestBracketKeyValueMap get(fn get_test_list): double_map hasher(twox_64_concat) QueueCluster, hasher(twox_64_concat) SomeKey => SomeStruct; // N
