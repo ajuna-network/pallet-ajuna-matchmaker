@@ -57,6 +57,34 @@ MatchMaker: pallet_matchmaker::{Pallet, Call, Storage, Event<T>},
 
 This matchmaker pallet does not have any genesis configuration.
 
+### Types
+
+Additional types used in ConnectFour
+
+```json
+{
+  "BoardState": {
+    "_enum": [
+      "None",
+      "Running",
+      "Finished(AccountId)"
+    ]
+  },
+  "BoardStruct": {
+    "id": "Hash",
+    "red": "AccountId",
+    "blue": "AccountId",
+    "board": "[[u8; 6]; 7]",
+    "last_turn": "BlockNumber",
+    "next_player": "u8",
+    "board_state": "BoardState"
+  },
+  "PlayerStruct": {
+    "account": "AccountId"
+  }
+}
+```
+
 ## Reference Docs
 
 You can view the reference docs for this pallet by running:

@@ -68,15 +68,15 @@ pub mod pallet {
 	pub fn BracketIndicesDefault<T: Config>() -> (BufferIndex, BufferIndex) { (0, 0) }
 	#[pallet::storage]
 	#[pallet::getter(fn indices)]
-	pub type BracketIndices<T: Config> = StorageMap<_, Twox64Concat, Bracket, (BufferIndex, BufferIndex), ValueQuery, BracketIndicesDefault<T>>;
+	pub type BracketIndices<T: Config> = StorageMap<_, Blake2_128Concat, Bracket, (BufferIndex, BufferIndex), ValueQuery, BracketIndicesDefault<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn index_key)]
-	pub type BracketIndexKeyMap<T: Config> = StorageDoubleMap<_, Twox64Concat, Bracket, Twox64Concat, BufferIndex, T::AccountId, ValueQuery>;
+	pub type BracketIndexKeyMap<T: Config> = StorageDoubleMap<_, Blake2_128Concat, Bracket, Blake2_128Concat, BufferIndex, T::AccountId, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn key_value)]
-	pub type BracketKeyValueMap<T: Config> = StorageDoubleMap<_, Twox64Concat, Bracket, Twox64Concat, T::AccountId, PlayerStruct<T::AccountId>, ValueQuery>;
+	pub type BracketKeyValueMap<T: Config> = StorageDoubleMap<_, Blake2_128Concat, Bracket, Blake2_128Concat, T::AccountId, PlayerStruct<T::AccountId>, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
