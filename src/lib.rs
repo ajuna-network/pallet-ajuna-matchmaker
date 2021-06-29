@@ -24,6 +24,8 @@ mod brackets;
 
 use brackets::{BracketsTrait, BracketsTransient, BufferIndex, Bracket};
 
+const AMOUNT_PLAYERS: usize = 2;
+
 #[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct PlayerStruct<AccountId> {
@@ -202,26 +204,41 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn do_try_match() -> Option<[T::AccountId; 2]> {
-		let bracket: Bracket = 0;
+	fn do_try_match() -> Option<[T::AccountId; 2]> {	
 		let mut queue = Self::queue_transient();
 
-		if queue.size(bracket) < 2 {
+		 let mut brackets: Vec<Bracket> = Vec::new();
+		// pass trough all brackets
+		for i in 0..Self::brackets_count() {
+			// skip if bracket is empty
+			if queue.size(i) == 0 {
+				continue;
+			} 
+			// iterate for each slot occupied and fill, till player match size reached
+			for _j in 0..queue.size(i) {
+				if brackets.len() == AMOUNT_PLAYERS {
+					break;
+				}
+				brackets.push(i);
+			}
+			// leave if brackets is filled with brackets
+			if brackets.len() == AMOUNT_PLAYERS {
+				break;
+			}
+		}
+		// vec not filled with enough brackets leave
+		if brackets.len() < AMOUNT_PLAYERS {
 			return None;
 		}
-
-		let mut accounts: [T::AccountId; 2] = Default::default();
-
-		if let Some(player1) = queue.pop(bracket) {
-			accounts[0] = player1.account.clone();
-			Self::deposit_event(Event::Popped(player1));	
+		// pop from the harvested brackets players
+		let mut accounts: [T::AccountId; AMOUNT_PLAYERS] = Default::default();
+		for i in 0..brackets.len() {
+			if let Some(p) = queue.pop(brackets[i]) {
+				accounts[i] = p.account.clone();
+				Self::deposit_event(Event::Popped(p));	
+			}
 		}
-
-		if let Some(player2) = queue.pop(bracket) {
-			accounts[1] = player2.account.clone();
-			Self::deposit_event(Event::Popped(player2));	
-		}
-
+		// return result
 		Some(accounts)
 	}
 
