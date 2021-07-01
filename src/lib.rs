@@ -26,6 +26,16 @@ use brackets::{BracketsTrait, BracketsTransient, BufferIndex, Bracket};
 
 const AMOUNT_PLAYERS: u8 = 2;
 
+#[derive(Encode, Decode, Clone, PartialEq)]
+pub enum MatchingType {
+	// ranked matches, if no one in bracket drop down
+	Simple,
+	// only allow same bracket matches
+	Same,
+	// take only one of one bracket
+	Mix,
+}
+
 #[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct PlayerStruct<AccountId> {
@@ -220,7 +230,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn do_try_match() -> Option<[T::AccountId; 2]> {	
+	fn do_try_match() -> Option<[T::AccountId; AMOUNT_PLAYERS as usize]> {	
 		let mut queue = Self::queue_transient();
 
 		 let mut brackets: Vec<Bracket> = Vec::new();
