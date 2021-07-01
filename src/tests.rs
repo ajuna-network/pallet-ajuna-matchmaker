@@ -23,6 +23,21 @@ fn correct_error_for_none_value() {
 }
 
 #[test]
+fn test_is_queued() {
+	new_test_ext().execute_with(|| {
+
+		let player1 = 1;
+
+		assert_eq!(MatchMaker::do_queue_size(0), 0);
+		assert_eq!(MatchMaker::do_is_queued(player1), false);
+		assert_eq!(MatchMaker::do_add_queue(player1, 0), true);
+		assert_eq!(MatchMaker::do_is_queued(player1), true);
+		MatchMaker::do_empty_queue(0);
+		assert_eq!(MatchMaker::do_is_queued(player1), false);
+	});
+}
+
+#[test]
 fn test_add_queue() {
 	new_test_ext().execute_with(|| {
 
