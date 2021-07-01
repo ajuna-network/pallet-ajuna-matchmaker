@@ -24,7 +24,7 @@ mod brackets;
 
 use brackets::{BracketsTrait, BracketsTransient, BufferIndex, Bracket};
 
-const AMOUNT_PLAYERS: usize = 2;
+const AMOUNT_PLAYERS: u8 = 2;
 
 #[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Debug))]
@@ -43,8 +43,17 @@ pub mod pallet {
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
+
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		/// Constant that indicates how many players are need to create a new match.
+		#[pallet::constant]
+		type AmountPlayers: Get<u8>;
+
+		/// Constant that indicates how many ranking brackets exist for players.
+		#[pallet::constant]
+		type AmountBrackets: Get<u8>;
 	}
 
 	#[pallet::pallet]
@@ -60,7 +69,7 @@ pub mod pallet {
 	pub type Something<T> = StorageValue<_, u32>;
 
 	#[pallet::type_value]
-	pub fn BracketsCountDefault<T: Config>() -> u8 { 1 }
+	pub fn BracketsCountDefault<T: Config>() -> u8 { T::AmountBrackets::get() }
 	#[pallet::storage]
 	#[pallet::getter(fn brackets_count)]
 	pub type BracketsCount<T> = StorageValue<_, u8, ValueQuery, BracketsCountDefault<T>>;
@@ -126,6 +135,7 @@ pub mod pallet {
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
+
 		/// An example dispatchable that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
@@ -166,6 +176,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+
 	/// Constructor function so we don't have to specify the types every time.
 	///
 	/// Constructs a ringbuffer transient and returns it as a boxed trait object.
@@ -181,8 +192,7 @@ impl<T: Config> Pallet<T> {
 		>::new())
 	}
 	
-	fn do_add_queue(account: T::AccountId) -> bool {
-		let bracket:u8 = 0;
+	fn do_add_queue(account: T::AccountId, bracket: u8) -> bool {
 		let mut queue = Self::queue_transient();
 
 		let player = PlayerStruct{ account };
@@ -195,12 +205,18 @@ impl<T: Config> Pallet<T> {
 		true
 	}
 
-	fn do_empty_queue() {
-		let bracket: Bracket = 0;
+	fn do_empty_queue(bracket: u8) {
 		let mut queue = Self::queue_transient();
 
 		while queue.size(bracket) > 0 {
 			queue.pop(bracket);
+		}
+	}
+
+	fn do_all_empty_queue() {
+
+		for i in 0..Self::brackets_count() {
+			Self::do_empty_queue(i);
 		}
 	}
 
@@ -216,22 +232,22 @@ impl<T: Config> Pallet<T> {
 			} 
 			// iterate for each slot occupied and fill, till player match size reached
 			for _j in 0..queue.size(i) {
-				if brackets.len() == AMOUNT_PLAYERS {
+				if brackets.len() == AMOUNT_PLAYERS as usize {
 					break;
 				}
 				brackets.push(i);
 			}
 			// leave if brackets is filled with brackets
-			if brackets.len() == AMOUNT_PLAYERS {
+			if brackets.len() == AMOUNT_PLAYERS as usize {
 				break;
 			}
 		}
 		// vec not filled with enough brackets leave
-		if brackets.len() < AMOUNT_PLAYERS {
+		if brackets.len() < AMOUNT_PLAYERS as usize {
 			return None;
 		}
 		// pop from the harvested brackets players
-		let mut accounts: [T::AccountId; AMOUNT_PLAYERS] = Default::default();
+		let mut accounts: [T::AccountId; AMOUNT_PLAYERS as usize] = Default::default();
 		for i in 0..brackets.len() {
 			if let Some(p) = queue.pop(brackets[i]) {
 				accounts[i] = p.account.clone();
@@ -247,25 +263,42 @@ impl<T: Config> Pallet<T> {
 		Self::queue_transient().is_queued(account)
 	}
 
-	fn do_queue_size() -> BufferIndex {
-		let bracket: Bracket = 0;
+	fn do_queue_size(bracket: u8) -> BufferIndex {
+
 		Self::queue_transient().size(bracket)
+	}
+
+	fn do_all_queue_size() -> BufferIndex {
+		let queue = Self::queue_transient();
+
+		let mut total_queued: BufferIndex = 0;
+		// count all existing brackets
+		for i in 0..Self::brackets_count() {
+			total_queued = total_queued + queue.size(i);
+		}
+		// return result
+		total_queued
 	}
 }
 
 impl<T: Config> MatchFunc<T::AccountId> for Pallet<T> {
 
-	fn empty_queue() {
+	fn empty_queue(bracket: u8) {
 
-		Self::do_empty_queue();
+		Self::do_empty_queue(bracket);
 	}
 
-	fn add_queue(account: T::AccountId) -> bool {
+	fn all_empty_queue() {
 
-		Self::do_add_queue(account)
+		Self::do_all_empty_queue();
 	}
 
-	fn try_match() -> Option<[T::AccountId; 2]> {
+	fn add_queue(account: T::AccountId, bracket: u8) -> bool {
+
+		Self::do_add_queue(account, bracket)
+	}
+
+	fn try_match() -> Option<[T::AccountId; AMOUNT_PLAYERS as usize]> {
 		
 		Self::do_try_match()
 	}
@@ -275,21 +308,37 @@ impl<T: Config> MatchFunc<T::AccountId> for Pallet<T> {
 		Self::do_is_queued(account)
 	}
 
-	fn queue_size() -> BufferIndex {
+	fn queue_size(bracket: u8) -> BufferIndex {
 		
-		Self::do_queue_size()
+		Self::do_queue_size(bracket)
+	}
+
+	fn all_queue_size() -> BufferIndex {
+
+		Self::do_all_queue_size()
 	}
 }
 
 pub trait MatchFunc<AccountId> {
 
-	fn empty_queue();
+	/// empty specific bracket queue
+	fn empty_queue(bracket: u8);
 
-	fn add_queue(account: AccountId) -> bool;
+	/// empty all queues
+	fn all_empty_queue();
 
-	fn try_match() -> Option<[AccountId; 2]>;
+	/// return true if adding account to bracket queue was successful
+	fn add_queue(account: AccountId, bracket: u8) -> bool;
 
+	/// try create a match
+	fn try_match() -> Option<[AccountId; AMOUNT_PLAYERS as usize]>;
+
+	// return true if an account is queued in any bracket
 	fn is_queued(account: AccountId) -> bool;
 
-	fn queue_size() -> BufferIndex;
+	// return size of a specific bracket queue
+	fn queue_size(bracket: u8) -> BufferIndex;
+
+	// return total size of all queued accounts in all brackets
+	fn all_queue_size() -> BufferIndex;
 }
