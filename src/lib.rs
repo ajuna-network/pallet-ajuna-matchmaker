@@ -11,6 +11,8 @@ use sp_std::boxed::{
 	Box
 };
 
+use frame_support::traits::Get;
+
 #[cfg(test)]
 mod mock;
 
@@ -23,8 +25,6 @@ mod benchmarking;
 mod brackets;
 
 use brackets::{BracketsTrait, BracketsTransient, BufferIndex, Bracket};
-
-const AMOUNT_PLAYERS: u8 = 2;
 
 #[derive(Encode, Decode, Clone, PartialEq)]
 pub enum MatchingType {
@@ -232,6 +232,7 @@ impl<T: Config> Pallet<T> {
 
 	fn do_try_match() -> Vec<T::AccountId> {	
 		let mut queue = Self::queue_transient();
+		let max_players = T::AmountPlayers::get();
 
 		let mut result: Vec<T::AccountId> = Vec::new(); 
 		let mut brackets: Vec<Bracket> = Vec::new();
@@ -243,18 +244,18 @@ impl<T: Config> Pallet<T> {
 			} 
 			// iterate for each slot occupied and fill, till player match size reached
 			for _j in 0..queue.size(i) {
-				if brackets.len() == AMOUNT_PLAYERS as usize {
+				if brackets.len() == max_players as usize {
 					break;
 				}
 				brackets.push(i);
 			}
 			// leave if brackets is filled with brackets
-			if brackets.len() == AMOUNT_PLAYERS as usize {
+			if brackets.len() == max_players as usize {
 				break;
 			}
 		}
 		// vec not filled with enough brackets leave
-		if brackets.len() < AMOUNT_PLAYERS as usize {
+		if brackets.len() < max_players as usize {
 			return result;
 		}
 
