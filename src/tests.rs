@@ -45,21 +45,21 @@ fn test_add_queue() {
 		let player2 = 2;
 
 		assert_eq!(MatchMaker::do_queue_size(0), 0);
-		assert_eq!(MatchMaker::do_try_match(), None);
+		assert_eq!(MatchMaker::do_try_match().is_empty(), true);
 		assert_eq!(MatchMaker::do_add_queue(player1, 0), true);
 		assert_eq!(MatchMaker::do_queue_size(0), 1);
-		assert_eq!(MatchMaker::do_try_match(), None);
+		assert_eq!(MatchMaker::do_try_match().is_empty(), true);
 		assert_eq!(MatchMaker::do_add_queue(player2,  0), true);
 		assert_eq!(MatchMaker::do_queue_size(0), 2);
-		assert_eq!(MatchMaker::do_try_match(), Some([1, 2]));
+		assert_eq!(MatchMaker::do_try_match(), [1, 2]);
 		assert_eq!(MatchMaker::do_queue_size(0), 0);
-		assert_eq!(MatchMaker::do_try_match(), None);
+		assert_eq!(MatchMaker::do_try_match().is_empty(), true);
 
 		assert_eq!(MatchMaker::do_add_queue(player1, 0), true);
 		assert_eq!(MatchMaker::do_add_queue(player2, 0), true);
 		assert_eq!(MatchMaker::do_queue_size(0), 2);
 		MatchMaker::do_empty_queue(0);
-		assert_eq!(MatchMaker::do_try_match(), None);
+		assert_eq!(MatchMaker::do_try_match().is_empty(), true);
 		assert_eq!(MatchMaker::do_queue_size(0), 0);
 	});
 }
@@ -94,12 +94,12 @@ fn test_brackets() {
 		assert_eq!(MatchMaker::do_queue_size(1), 2);
 		assert_eq!(MatchMaker::do_queue_size(2), 1);
 		assert_eq!(MatchMaker::do_all_queue_size(), 6);
-		assert_eq!(MatchMaker::do_try_match(), Some([1, 2]));
-		assert_eq!(MatchMaker::do_try_match(), Some([3, 4]));
+		assert_eq!(MatchMaker::do_try_match(), [1, 2]);
+		assert_eq!(MatchMaker::do_try_match(), [3, 4]);
 		assert_eq!(MatchMaker::do_add_queue(player1, 0), true);
-		assert_eq!(MatchMaker::do_try_match(), Some([1, 5]));
-		assert_eq!(MatchMaker::do_try_match(), None);
+		assert_eq!(MatchMaker::do_try_match(), [1, 5]);
+		assert_eq!(MatchMaker::do_try_match().is_empty(), true);
 		assert_eq!(MatchMaker::do_add_queue(player5, 1), true);
-		assert_eq!(MatchMaker::do_try_match(), Some([5, 6]));
+		assert_eq!(MatchMaker::do_try_match(), [5, 6]);
 	});
 }

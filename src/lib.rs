@@ -230,10 +230,11 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn do_try_match() -> Option<[T::AccountId; AMOUNT_PLAYERS as usize]> {	
+	fn do_try_match() -> Vec<T::AccountId> {	
 		let mut queue = Self::queue_transient();
 
-		 let mut brackets: Vec<Bracket> = Vec::new();
+		let mut result: Vec<T::AccountId> = Vec::new(); 
+		let mut brackets: Vec<Bracket> = Vec::new();
 		// pass trough all brackets
 		for i in 0..Self::brackets_count() {
 			// skip if bracket is empty
@@ -254,18 +255,18 @@ impl<T: Config> Pallet<T> {
 		}
 		// vec not filled with enough brackets leave
 		if brackets.len() < AMOUNT_PLAYERS as usize {
-			return None;
+			return result;
 		}
+
 		// pop from the harvested brackets players
-		let mut accounts: [T::AccountId; AMOUNT_PLAYERS as usize] = Default::default();
 		for i in 0..brackets.len() {
 			if let Some(p) = queue.pop(brackets[i]) {
-				accounts[i] = p.account.clone();
+				result.push(p.account.clone());
 				Self::deposit_event(Event::Popped(p));	
 			}
 		}
 		// return result
-		Some(accounts)
+		result
 	}
 
 	fn do_is_queued(account: T::AccountId) -> bool {
@@ -308,7 +309,7 @@ impl<T: Config> MatchFunc<T::AccountId> for Pallet<T> {
 		Self::do_add_queue(account, bracket)
 	}
 
-	fn try_match() -> Option<[T::AccountId; AMOUNT_PLAYERS as usize]> {
+	fn try_match() -> Vec<T::AccountId> {
 		
 		Self::do_try_match()
 	}
@@ -341,7 +342,7 @@ pub trait MatchFunc<AccountId> {
 	fn add_queue(account: AccountId, bracket: u8) -> bool;
 
 	/// try create a match
-	fn try_match() -> Option<[AccountId; AMOUNT_PLAYERS as usize]>;
+	fn try_match() -> Vec<AccountId>;
 
 	// return true if an account is queued in any bracket
 	fn is_queued(account: AccountId) -> bool;
