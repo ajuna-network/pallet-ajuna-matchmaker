@@ -47,3 +47,9 @@ jobs:
       with:
         command: check
         args: --all-targets
+        
+    - name: Check Code
+      run: cargo check
+
+    - name: Test Code
+      run: cargo test
