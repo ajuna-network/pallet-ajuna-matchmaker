@@ -10,6 +10,9 @@ use codec::{Decode, Encode};
 use sp_std::boxed::{
 	Box
 };
+use sp_std::vec::{
+	Vec
+};
 
 use frame_support::traits::Get;
 
