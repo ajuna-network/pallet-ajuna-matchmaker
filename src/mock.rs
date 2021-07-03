@@ -52,8 +52,15 @@ impl system::Config for Test {
 	type OnSetCode = ();
 }
 
+parameter_types! {
+	pub const AmountPlayers: u8 = 2;
+	pub const AmountBrackets: u8 = 3;
+}
+
 impl pallet_matchmaker::Config for Test {
 	type Event = Event;
+	type AmountPlayers = AmountPlayers;
+	type AmountBrackets = AmountBrackets;
 }
 
 // Build genesis storage according to the mock runtime.
