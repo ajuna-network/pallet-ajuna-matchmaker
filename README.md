@@ -24,7 +24,7 @@ To add this pallet to your runtime, simply include the following to your runtime
 
 ```TOML
 # external pallets
-pallet-matchmaker = {default-features = false, version = '0.1.0', git = 'https://github.com/JetonNetwork/pallet-jton-matchmaker.git'}
+pallet-matchmaker = {default-features = false, version = '3.0.0', git = 'https://github.com/JetonNetwork/pallet-jton-matchmaker.git', tag = 'monthly-2021-07' }
 ```
 
 and update your runtime's `std` feature to include this pallet:
@@ -40,10 +40,19 @@ std = [
 
 You should implement it's trait like so:
 
+AmountPlayers, amount of players need to create a match.
+AmountBrackets, amount of brackets that exists for ranking or other purpose.
+
 ```rust
-/// Used for test_module
-impl pallet_matchmaker::Config for Runtime {
+parameter_types! {
+	pub const AmountPlayers: u8 = 2;
+	pub const AmountBrackets: u8 = 3;
+}
+
+impl pallet_matchmaker::Config for Test {
 	type Event = Event;
+	type AmountPlayers = AmountPlayers;
+	type AmountBrackets = AmountBrackets;
 }
 ```
 
@@ -59,25 +68,17 @@ This matchmaker pallet does not have any genesis configuration.
 
 ### Types
 
-Additional types used in ConnectFour
+Additional types used in the matchmaker pallet
 
 ```json
 {
-  "BoardState": {
+  "MatchingType": {
     "_enum": [
       "None",
-      "Running",
-      "Finished(AccountId)"
+      "Simple",
+      "Same",
+      "Mix"
     ]
-  },
-  "BoardStruct": {
-    "id": "Hash",
-    "red": "AccountId",
-    "blue": "AccountId",
-    "board": "[[u8; 6]; 7]",
-    "last_turn": "BlockNumber",
-    "next_player": "u8",
-    "board_state": "BoardState"
   },
   "PlayerStruct": {
     "account": "AccountId"
