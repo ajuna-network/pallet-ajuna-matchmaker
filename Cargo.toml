@@ -31,12 +31,11 @@ sp-runtime = {default-features = false, version = '4.0.0-dev', git = 'https://gi
 
 [features]
 default = ['std']
-runtime-benchmarks = ['frame-benchmarking']
+runtime-benchmarks = ['frame-benchmarking/std']
 std = [
 	'codec/std',
 	'sp-std/std',
 	'frame-support/std',
 	'frame-system/std',
-	'frame-benchmarking/std',
 ]
 try-runtime = ['frame-support/try-runtime']
