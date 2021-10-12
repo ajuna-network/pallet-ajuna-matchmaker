@@ -10,6 +10,7 @@ use codec::{Decode, Encode};
 use sp_std::boxed::{
 	Box
 };
+use scale_info::TypeInfo;
 use sp_std::vec::{
 	Vec
 };
@@ -29,7 +30,7 @@ mod brackets;
 
 use brackets::{BracketsTrait, BracketsTransient, BufferIndex, Bracket};
 
-#[derive(Encode, Decode, Clone, PartialEq)]
+#[derive(Encode, Decode, Clone, PartialEq, TypeInfo)]
 pub enum MatchingType {
 	// ranked matches, if no one in bracket drop down
 	Simple,
@@ -39,7 +40,7 @@ pub enum MatchingType {
 	Mix,
 }
 
-#[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
+#[derive(Encode, Decode, Default, Clone, PartialEq, Eq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct PlayerStruct<AccountId> {
 	account: AccountId,
@@ -105,7 +106,6 @@ pub mod pallet {
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
 	#[pallet::event]
-	#[pallet::metadata(T::AccountId = "AccountId")]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Event documentation should end with an array that provides descriptive names for event
