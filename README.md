@@ -24,7 +24,7 @@ To add this pallet to your runtime, simply include the following to your runtime
 
 ```TOML
 # external pallets
-pallet-matchmaker = {default-features = false, version = '3.0.0', git = 'https://github.com/JetonNetwork/pallet-jton-matchmaker.git', tag = 'monthly-2021-07' }
+pallet-matchmaker = {default-features = false, version = '3.0.0', git = 'https://github.com/ajuna-network/pallet-jton-matchmaker.git', tag = 'monthly-2021-10' }
 ```
 
 and update your runtime's `std` feature to include this pallet:
