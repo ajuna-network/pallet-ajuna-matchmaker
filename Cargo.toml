@@ -1,12 +1,12 @@
 [package]
 name = 'pallet-matchmaker'
-version = '0.1.0'
+version = '4.0.0-dev'
 description = 'Ajuna Network pallet matchmaker for creating matches between players.'
 authors = ['Ajuna Network <https://github.com/ajuna-network>']
 edition = '2018'
 homepage = 'https://ajuna.io'
 license = 'Apache-2.0'
-repository = 'https://github.com/ajuna-network/pallet-jton-matchmaker/'
+repository = 'https://github.com/ajuna-network/pallet-ajuna-matchmaker/'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
