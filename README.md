@@ -1,6 +1,6 @@
 # Ajuna Network Pallet MatchMaker
 
-This is a matchmaker Substrate pallet which lives as its own crate so it can be imported into multiple runtimes.
+This is a instantiable matchmaker Substrate pallet which lives as its own crate so it can be imported into multiple runtimes.
 
 ## Purpose
 
