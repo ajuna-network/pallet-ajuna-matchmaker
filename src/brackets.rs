@@ -153,9 +153,11 @@ where
 		
 		let (mut v_start, mut v_end) = self.index_vector[bracket as usize];
 
-		// check if there is already such a key queued
-		if N::contains_key(bracket, &item_key) {
-			return false
+		// check all brackets if key is queued
+		for i in 0..self.index_vector.len() {
+			if N::contains_key(i as Bracket, &item_key) {
+				return false
+			}
 		}
 
 		// insert the item key and the item
