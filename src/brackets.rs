@@ -10,7 +10,7 @@
 use codec::{Codec, EncodeLike};
 use core::marker::PhantomData;
 use frame_support::storage::{StorageDoubleMap, StorageMap, StorageValue};
-use sp_std::vec::{Vec};
+use sp_std::vec::Vec;
 
 /// Trait object presenting the brackets interface.
 pub trait BracketsTrait<ItemKey, Item>
@@ -32,8 +32,8 @@ where
 	fn pop(&mut self, b: Bracket) -> Option<Item>;
 	/// Return whether the queue is empty.
 	fn is_empty(&self, b: Bracket) -> bool;
-    /// Return the size of the brackets queue.
-    fn size(&self, b: Bracket) -> BufferIndex;
+	/// Return the size of the brackets queue.
+	fn size(&self, b: Bracket) -> BufferIndex;
 	/// Return whether the item_key is queued or not.
 	fn is_queued(&self, j: ItemKey) -> bool;
 }
@@ -93,7 +93,6 @@ where
 	///
 	/// Initializes itself from the bounds storage `B`.
 	pub fn new() -> BracketsTransient<ItemKey, Item, C, B, M, N> {
-
 		// get brackets count
 		let brackets_count = C::get();
 
@@ -104,10 +103,7 @@ where
 			index_vector.push((start, end));
 		}
 
-		BracketsTransient {
-			index_vector,
-			_phantom: PhantomData,
-		}
+		BracketsTransient { index_vector, _phantom: PhantomData }
 	}
 }
 
@@ -127,7 +123,8 @@ where
 }
 
 /// Brackets implementation based on `BracketsTransient`
-impl<ItemKey, Item, C, B, M, N> BracketsTrait<ItemKey, Item> for BracketsTransient<ItemKey, Item, C, B, M, N>
+impl<ItemKey, Item, C, B, M, N> BracketsTrait<ItemKey, Item>
+	for BracketsTransient<ItemKey, Item, C, B, M, N>
 where
 	ItemKey: Codec + EncodeLike,
 	Item: Codec + EncodeLike,
@@ -138,7 +135,6 @@ where
 {
 	/// Commit the (potentially) changed bounds to storage.
 	fn commit(&self) {
-
 		// commit indicies on all brackets
 		for i in 0..self.index_vector.len() {
 			let (v_start, v_end) = self.index_vector[i];
@@ -150,7 +146,6 @@ where
 	///
 	/// Will insert the new item, but will not update the bounds in storage.
 	fn push(&mut self, bracket: Bracket, item_key: ItemKey, item: Item) -> bool {
-		
 		let (mut v_start, mut v_end) = self.index_vector[bracket as usize];
 
 		// check all brackets if key is queued
@@ -182,9 +177,8 @@ where
 	///
 	/// Will remove the item, but will not update the bounds in storage.
 	fn pop(&mut self, bracket: Bracket) -> Option<Item> {
-
 		if self.is_empty(bracket) {
-			return None;
+			return None
 		}
 
 		let (mut v_start, v_end) = self.index_vector[bracket as usize];
@@ -201,27 +195,24 @@ where
 
 	/// Return whether to consider the queue empty.
 	fn is_empty(&self, bracket: Bracket) -> bool {
-
 		let (v_start, v_end) = self.index_vector[bracket as usize];
-		
+
 		v_start == v_end
 	}
 
-    /// Return the current size of the ring buffer as a BufferIndex.
-    fn size(&self, bracket: Bracket) -> BufferIndex {
-
+	/// Return the current size of the ring buffer as a BufferIndex.
+	fn size(&self, bracket: Bracket) -> BufferIndex {
 		let (v_start, v_end) = self.index_vector[bracket as usize];
 
-        if v_start <= v_end {
-            return v_end - v_start
-        } else {
-            return (BufferIndex::MAX - v_start) + v_end;
-        }
-    }
+		if v_start <= v_end {
+			return v_end - v_start
+		} else {
+			return (BufferIndex::MAX - v_start) + v_end
+		}
+	}
 
 	/// Return whether the item_key is queued or not.
 	fn is_queued(&self, item_key: ItemKey) -> bool {
-
 		// check all brackets if key is queued
 		for i in 0..self.index_vector.len() {
 			if N::contains_key(i as Bracket, &item_key) {

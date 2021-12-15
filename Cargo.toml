@@ -6,29 +6,29 @@ authors = ['Ajuna Network <https://github.com/ajuna-network>']
 edition = '2018'
 homepage = 'https://ajuna.io'
 license = 'Apache-2.0'
-repository = 'https://github.com/ajuna-network/pallet-ajuna-matchmaker/'
+repository = 'https://github.com/ajuna-network/pallets-ajuna/tree/master/pallet-ajuna-matchmaker'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
 # external dependencies
-codec = {default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0'}
+codec = {default-features = false, features = ['derive','max-encoded-len'], package = 'parity-scale-codec', version = '2.3.1'}
 scale-info = {default-features = false, features = ['derive'], version = '1.0'}
 
 # primitives
-sp-std = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10'}
+sp-std = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12'}
 
 # Substrate dependencies
-frame-benchmarking = {default-features = false, optional = true, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10'}
-frame-support = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10'}
-frame-system = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10'}
+frame-benchmarking = {default-features = false, optional = true, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12'}
+frame-support = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12'}
+frame-system = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12'}
 
 [dev-dependencies]
-serde = '1.0.119'
-sp-core = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10'}
-sp-io = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10'}
-sp-runtime = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10'}
+serde = '1.0.126'
+sp-runtime = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12'}
+sp-core = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12'}
+sp-io = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12'}
 
 [features]
 default = ['std']
