@@ -17,7 +17,7 @@ codec = {default-features = false, features = ['derive','max-encoded-len'], pack
 scale-info = {default-features = false, features = ['derive'], version = '1.0'}
 
 # primitives
-sp-std = {default-features = false, version = '4.0.0', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
+sp-std = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
 
 # Substrate dependencies
 frame-benchmarking = {default-features = false, optional = true, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
@@ -26,9 +26,9 @@ frame-system = {default-features = false, version = '4.0.0-dev', git = 'https://
 
 [dev-dependencies]
 serde = '1.0.126'
-sp-runtime = {default-features = false, version = '4.0.0', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
-sp-core = {default-features = false, version = '4.1.0-dev', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
-sp-io = {default-features = false, version = '4.0.0', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
+sp-runtime = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
+sp-core = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
+sp-io = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
 
 [features]
 default = ['std']
