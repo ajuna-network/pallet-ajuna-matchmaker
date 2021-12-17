@@ -34,7 +34,7 @@ pub enum MatchingType {
 	Mix,
 }
 
-#[derive(Encode, Decode, Default, Clone, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen)]
 pub struct PlayerStruct<AccountId> {
 	account: AccountId,
 }
@@ -100,7 +100,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		BufferIndex,
 		T::AccountId,
-		ValueQuery,
+		OptionQuery,
 	>;
 
 	#[pallet::storage]
@@ -112,7 +112,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		T::AccountId,
 		PlayerStruct<T::AccountId>,
-		ValueQuery,
+		OptionQuery,
 	>;
 
 	// Pallets use events to inform users when important changes are made.
