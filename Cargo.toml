@@ -17,18 +17,18 @@ codec = {default-features = false, features = ['derive','max-encoded-len'], pack
 scale-info = {default-features = false, features = ['derive'], version = '1.0'}
 
 # primitives
-sp-std = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
+sp-std = {default-features = false, git = 'https://github.com/paritytech/substrate.git', rev = '2a7a734c373d0b28c6c658667effd3fb8c9e35bf'}
 
 # Substrate dependencies
-frame-benchmarking = {default-features = false, optional = true, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
-frame-support = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
-frame-system = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
+frame-benchmarking = {default-features = false, git = 'https://github.com/paritytech/substrate.git', rev = '2a7a734c373d0b28c6c658667effd3fb8c9e35bf', optional = true}
+frame-support = {default-features = false, git = 'https://github.com/paritytech/substrate.git', rev = '2a7a734c373d0b28c6c658667effd3fb8c9e35bf'}
+frame-system = {default-features = false, git = 'https://github.com/paritytech/substrate.git', rev = '2a7a734c373d0b28c6c658667effd3fb8c9e35bf'}
 
 [dev-dependencies]
 serde = '1.0.126'
-sp-runtime = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
-sp-core = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
-sp-io = {default-features = false, version = '4.0.0-dev', git = 'https://github.com/paritytech/substrate.git', branch = 'master'}
+sp-runtime = {default-features = false, git = 'https://github.com/paritytech/substrate.git', rev = '2a7a734c373d0b28c6c658667effd3fb8c9e35bf'}
+sp-core = {default-features = false, git = 'https://github.com/paritytech/substrate.git', rev = '2a7a734c373d0b28c6c658667effd3fb8c9e35bf'}
+sp-io = {default-features = false, git = 'https://github.com/paritytech/substrate.git', rev = '2a7a734c373d0b28c6c658667effd3fb8c9e35bf'}
 
 [features]
 default = ['std']

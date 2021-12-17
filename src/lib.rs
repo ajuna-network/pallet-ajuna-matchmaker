@@ -34,7 +34,7 @@ pub enum MatchingType {
 	Mix,
 }
 
-#[derive(Encode, Decode, Default, Clone, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen)]
 pub struct PlayerStruct<AccountId> {
 	account: AccountId,
 }
@@ -100,7 +100,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		BufferIndex,
 		T::AccountId,
-		ValueQuery,
+		OptionQuery,
 	>;
 
 	#[pallet::storage]
@@ -112,7 +112,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		T::AccountId,
 		PlayerStruct<T::AccountId>,
-		ValueQuery,
+		OptionQuery,
 	>;
 
 	// Pallets use events to inform users when important changes are made.
@@ -164,7 +164,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		let player = PlayerStruct { account };
 		// duplicate check if we can add key to the queue
 		if !queue.push(bracket, player.account.clone(), player.clone()) {
-			return false
+			return false;
 		}
 
 		Self::deposit_event(Event::Queued(player));
@@ -195,23 +195,23 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		for i in 0..Self::brackets_count() {
 			// skip if bracket is empty
 			if queue.size(i) == 0 {
-				continue
+				continue;
 			}
 			// iterate for each slot occupied and fill, till player match size reached
 			for _j in 0..queue.size(i) {
 				if brackets.len() == max_players as usize {
-					break
+					break;
 				}
 				brackets.push(i);
 			}
 			// leave if brackets is filled with brackets
 			if brackets.len() == max_players as usize {
-				break
+				break;
 			}
 		}
 		// vec not filled with enough brackets leave
 		if brackets.len() < max_players as usize {
-			return result
+			return result;
 		}
 
 		// pop from the harvested brackets players

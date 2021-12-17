@@ -73,8 +73,8 @@ where
 	Item: Codec + EncodeLike,
 	C: StorageValue<Bracket, Query = Bracket>,
 	B: StorageMap<Bracket, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageDoubleMap<Bracket, BufferIndex, ItemKey, Query = ItemKey>,
-	N: StorageDoubleMap<Bracket, ItemKey, Item, Query = Item>,
+	M: StorageDoubleMap<Bracket, BufferIndex, ItemKey, Query = Option<ItemKey>>,
+	N: StorageDoubleMap<Bracket, ItemKey, Item, Query = Option<Item>>,
 {
 	index_vector: BufferIndexVector,
 	_phantom: PhantomData<(ItemKey, Item, C, B, M, N)>,
@@ -86,8 +86,8 @@ where
 	Item: Codec + EncodeLike,
 	C: StorageValue<Bracket, Query = Bracket>,
 	B: StorageMap<Bracket, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageDoubleMap<Bracket, BufferIndex, ItemKey, Query = ItemKey>,
-	N: StorageDoubleMap<Bracket, ItemKey, Item, Query = Item>,
+	M: StorageDoubleMap<Bracket, BufferIndex, ItemKey, Query = Option<ItemKey>>,
+	N: StorageDoubleMap<Bracket, ItemKey, Item, Query = Option<Item>>,
 {
 	/// Create a new `BracketsTransient` that backs the brackets implementation.
 	///
@@ -103,7 +103,10 @@ where
 			index_vector.push((start, end));
 		}
 
-		BracketsTransient { index_vector, _phantom: PhantomData }
+		BracketsTransient {
+			index_vector,
+			_phantom: PhantomData,
+		}
 	}
 }
 
@@ -113,8 +116,8 @@ where
 	Item: Codec + EncodeLike,
 	C: StorageValue<Bracket, Query = Bracket>,
 	B: StorageMap<Bracket, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageDoubleMap<Bracket, BufferIndex, ItemKey, Query = ItemKey>,
-	N: StorageDoubleMap<Bracket, ItemKey, Item, Query = Item>,
+	M: StorageDoubleMap<Bracket, BufferIndex, ItemKey, Query = Option<ItemKey>>,
+	N: StorageDoubleMap<Bracket, ItemKey, Item, Query = Option<Item>>,
 {
 	/// Commit on `drop`.
 	fn drop(&mut self) {
@@ -130,8 +133,8 @@ where
 	Item: Codec + EncodeLike,
 	C: StorageValue<Bracket, Query = Bracket>,
 	B: StorageMap<Bracket, (BufferIndex, BufferIndex), Query = (BufferIndex, BufferIndex)>,
-	M: StorageDoubleMap<Bracket, BufferIndex, ItemKey, Query = ItemKey>,
-	N: StorageDoubleMap<Bracket, ItemKey, Item, Query = Item>,
+	M: StorageDoubleMap<Bracket, BufferIndex, ItemKey, Query = Option<ItemKey>>,
+	N: StorageDoubleMap<Bracket, ItemKey, Item, Query = Option<Item>>,
 {
 	/// Commit the (potentially) changed bounds to storage.
 	fn commit(&self) {
@@ -151,7 +154,7 @@ where
 		// check all brackets if key is queued
 		for i in 0..self.index_vector.len() {
 			if N::contains_key(i as Bracket, &item_key) {
-				return false
+				return false;
 			}
 		}
 
@@ -178,19 +181,18 @@ where
 	/// Will remove the item, but will not update the bounds in storage.
 	fn pop(&mut self, bracket: Bracket) -> Option<Item> {
 		if self.is_empty(bracket) {
-			return None
+			return None;
 		}
 
 		let (mut v_start, v_end) = self.index_vector[bracket as usize];
 
-		let item_key = M::take(bracket, v_start);
-		let item = N::take(bracket, item_key);
-
-		v_start = v_start.wrapping_add(1 as u16);
-
-		self.index_vector[bracket as usize] = (v_start, v_end);
-
-		item.into()
+		M::take(bracket, v_start)
+			.and_then(|item_key| N::take(bracket, item_key))
+			.and_then(|item| {
+				v_start = v_start.wrapping_add(1 as u16);
+				self.index_vector[bracket as usize] = (v_start, v_end);
+				Some(item)
+			})
 	}
 
 	/// Return whether to consider the queue empty.
@@ -205,9 +207,9 @@ where
 		let (v_start, v_end) = self.index_vector[bracket as usize];
 
 		if v_start <= v_end {
-			return v_end - v_start
+			return v_end - v_start;
 		} else {
-			return (BufferIndex::MAX - v_start) + v_end
+			return (BufferIndex::MAX - v_start) + v_end;
 		}
 	}
 
@@ -216,7 +218,7 @@ where
 		// check all brackets if key is queued
 		for i in 0..self.index_vector.len() {
 			if N::contains_key(i as Bracket, &item_key) {
-				return true
+				return true;
 			}
 		}
 
