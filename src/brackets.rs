@@ -103,7 +103,10 @@ where
 			index_vector.push((start, end));
 		}
 
-		BracketsTransient { index_vector, _phantom: PhantomData }
+		BracketsTransient {
+			index_vector,
+			_phantom: PhantomData,
+		}
 	}
 }
 
@@ -151,7 +154,7 @@ where
 		// check all brackets if key is queued
 		for i in 0..self.index_vector.len() {
 			if N::contains_key(i as Bracket, &item_key) {
-				return false
+				return false;
 			}
 		}
 
@@ -178,7 +181,7 @@ where
 	/// Will remove the item, but will not update the bounds in storage.
 	fn pop(&mut self, bracket: Bracket) -> Option<Item> {
 		if self.is_empty(bracket) {
-			return None
+			return None;
 		}
 
 		let (mut v_start, v_end) = self.index_vector[bracket as usize];
@@ -205,9 +208,9 @@ where
 		let (v_start, v_end) = self.index_vector[bracket as usize];
 
 		if v_start <= v_end {
-			return v_end - v_start
+			return v_end - v_start;
 		} else {
-			return (BufferIndex::MAX - v_start) + v_end
+			return (BufferIndex::MAX - v_start) + v_end;
 		}
 	}
 
@@ -216,7 +219,7 @@ where
 		// check all brackets if key is queued
 		for i in 0..self.index_vector.len() {
 			if N::contains_key(i as Bracket, &item_key) {
-				return true
+				return true;
 			}
 		}
 
