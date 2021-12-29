@@ -6,7 +6,7 @@ authors = ['Ajuna Network <https://github.com/ajuna-network>']
 edition = '2018'
 homepage = 'https://ajuna.io'
 license = 'Apache-2.0'
-repository = 'https://github.com/ajuna-network/pallets-ajuna/tree/master/pallet-ajuna-matchmaker'
+repository = 'https://github.com/ajuna-network/pallet-ajuna-matchmaker'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
